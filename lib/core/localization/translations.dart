@@ -53,6 +53,7 @@ class AppTranslations {
       'cancel': 'CANCEL',
       'save': 'SAVE',
       'add': 'ADD',
+      'delete': 'DELETE',
 
       // Dialogs
       'reset_confirm_title': 'Factory Reset',
@@ -69,6 +70,9 @@ class AppTranslations {
       'delete_customer_title': 'Delete Customer?',
       'delete_customer_msg':
           'Are you sure you want to delete {name}? This will also delete all their transaction history.',
+      'delete_transaction_title': 'Delete Transaction?',
+      'delete_transaction_msg':
+          'Are you sure you want to delete this transaction?',
       'new_customer': 'Add New Customer',
       'name_label': 'Customer Name',
       'name_error': 'Customer name is required',
@@ -133,6 +137,7 @@ class AppTranslations {
       'cancel': 'रद्द करें',
       'save': 'सहेजें',
       'add': 'जोड़ें',
+      'delete': 'हटाएं',
 
       // Dialogs
       'reset_confirm_title': 'फैक्टरी रीसेट',
@@ -149,6 +154,8 @@ class AppTranslations {
       'delete_customer_title': 'ग्राहक हटाएं?',
       'delete_customer_msg':
           'क्या आप वाकई {name} को हटाना चाहते हैं? यह उनके सभी लेनदेन इतिहास को भी हटा देगा।',
+      'delete_transaction_title': 'लेनदेन हटाएं?',
+      'delete_transaction_msg': 'क्या आप वाकई इस लेनदेन को हटाना चाहते हैं?',
       'new_customer': 'नया ग्राहक जोड़ें',
       'name_label': 'ग्राहक का नाम',
       'name_error': 'ग्राहक का नाम आवश्यक है',
@@ -229,6 +236,9 @@ class AppTranslations {
       'delete_customer_title': 'Customer Delete Karein?',
       'delete_customer_msg':
           'Kya aap waqayi {name} ko delete karna chahte hain? Isse unki saari transaction history bhi delete ho jayegi.',
+      'delete_transaction_title': 'Transaction Delete Karein?',
+      'delete_transaction_msg':
+          'Kya aap waqayi is transaction ko delete karna chahte hain?',
       'new_customer': 'Naya Customer Jodein',
       'name_label': 'Customer Name',
       'name_error': 'Customer ka naam zaroori hai',

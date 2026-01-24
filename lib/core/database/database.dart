@@ -41,8 +41,12 @@ class AppDatabase extends _$AppDatabase {
       into(customers).insert(customer);
   Future updateCustomer(Customer customer) =>
       update(customers).replace(customer);
-  Future deleteCustomer(Customer customer) =>
-      delete(customers).delete(customer);
+  Future<void> deleteCustomer(Customer customer) async {
+    await (delete(
+      transactions,
+    )..where((t) => t.customerId.equals(customer.id))).go();
+    await delete(customers).delete(customer);
+  }
 
   Future<List<Transaction>> getTransactionsForCustomer(String customerId) {
     return (select(

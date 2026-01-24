@@ -437,12 +437,74 @@ class _LedgerScreenState extends State<LedgerScreen> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _deleteTransaction(database, tx);
+                _showDeleteConfirmation(context, database, tx);
               },
             ),
             const SizedBox(height: 12),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(
+    BuildContext context,
+    AppDatabase database,
+    Transaction tx,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          AppTranslations.get(
+            Provider.of<LanguageProvider>(
+              context,
+              listen: false,
+            ).locale.languageCode,
+            'delete_transaction_title',
+          ),
+        ),
+        content: Text(
+          AppTranslations.get(
+            Provider.of<LanguageProvider>(
+              context,
+              listen: false,
+            ).locale.languageCode,
+            'delete_transaction_msg',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              AppTranslations.get(
+                Provider.of<LanguageProvider>(
+                  context,
+                  listen: false,
+                ).locale.languageCode,
+                'cancel',
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteTransaction(database, tx);
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFEF4444),
+            ),
+            child: Text(
+              AppTranslations.get(
+                Provider.of<LanguageProvider>(
+                  context,
+                  listen: false,
+                ).locale.languageCode,
+                'delete',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
