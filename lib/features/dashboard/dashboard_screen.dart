@@ -139,7 +139,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         final netBalance = totalGet - totalGive;
-        final formatter = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
+        final formatter = NumberFormat.currency(
+          locale: 'en_IN',
+          symbol: '₹',
+          decimalDigits: 0,
+        );
 
         return Container(
           margin: const EdgeInsets.all(16),
@@ -403,7 +407,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildCustomerItem(Customer customer) {
-    final formatter = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
+    final formatter = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
     final balance = customer.currentBalance;
     final isZero = balance.abs() < 0.01;
     final isGet = balance > 0;

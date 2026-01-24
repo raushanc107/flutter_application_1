@@ -31,6 +31,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
   @override
   Widget build(BuildContext context) {
     final database = Provider.of<AppDatabase>(context);
+    final formatter = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -61,6 +66,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           : const Color(0xFF111827),
                     ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     _currentCustomer.currentBalance.abs() < 0.01
                         ? AppTranslations.get(
@@ -69,7 +75,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             ).locale.languageCode,
                             'no_due',
                           )
-                        : '${_currentCustomer.currentBalance > 0 ? AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'ledger_get') : AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'ledger_give')} ₹${_currentCustomer.currentBalance.abs().toStringAsFixed(0)}',
+                        : '${_currentCustomer.currentBalance > 0 ? AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'ledger_get') : AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'ledger_give')} ${formatter.format(_currentCustomer.currentBalance.abs())}',
                     style: TextStyle(
                       fontSize: 12,
                       color: _currentCustomer.currentBalance.abs() < 0.01
@@ -186,6 +192,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
     AppDatabase database,
     Transaction tx,
   ) {
+    final formatter = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
     final isGave = tx.type == 'GAVE';
     final amountColor = isGave
         ? const Color(0xFFEF4444)
@@ -315,7 +326,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '₹ ${tx.amount.toStringAsFixed(0)}',
+                    formatter.format(tx.amount),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
