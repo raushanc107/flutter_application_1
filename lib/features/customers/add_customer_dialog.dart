@@ -67,34 +67,17 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
     return AlertDialog(
       backgroundColor: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            isEditing
-                ? AppTranslations.get(lang, 'edit_customer')
-                : AppTranslations.get(lang, 'new_customer'),
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white
-                  : const Color(0xFF111827),
-            ),
-          ),
-          if (!isEditing && _canImportContacts)
-            IconButton(
-              onPressed: _isLoadingContact ? null : _pickContact,
-              icon: _isLoadingContact
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.contacts, color: Color(0xFF4F46E5)),
-              tooltip: 'Import from Contacts',
-            ),
-        ],
+      title: Text(
+        isEditing
+            ? AppTranslations.get(lang, 'edit_customer')
+            : AppTranslations.get(lang, 'new_customer'),
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white
+              : const Color(0xFF111827),
+        ),
       ),
       content: Form(
         key: _formKey,
@@ -110,8 +93,16 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                 ),
                 suffixIcon: (!isEditing && _canImportContacts)
                     ? IconButton(
-                        icon: const Icon(Icons.contacts_outlined),
-                        onPressed: _pickContact,
+                        icon: _isLoadingContact
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.contacts_outlined),
+                        onPressed: _isLoadingContact ? null : _pickContact,
                         color: const Color(0xFF6B7280),
                       )
                     : null,
