@@ -37,6 +37,7 @@ class AppTranslations {
       // Ledger
       'ledger_get': 'You\'ll Get',
       'ledger_give': 'You\'ll Give',
+      'no_due': 'No Due',
       'no_transactions': 'No transactions yet.',
       'add_transaction_gave': 'Add Transaction (You Gave)',
       'add_transaction_got': 'Add Transaction (You Got)',
@@ -116,6 +117,7 @@ class AppTranslations {
       // Ledger
       'ledger_get': 'आपको मिलेंगे',
       'ledger_give': 'आपको देने हैं',
+      'no_due': 'कोई बकाया नहीं',
       'no_transactions': 'अभी तक कोई लेनदेन नहीं।',
       'add_transaction_gave': 'लेनदेन जोड़ें (आपने दिया)',
       'add_transaction_got': 'लेनदेन जोड़ें (आपको मिला)',
@@ -195,6 +197,7 @@ class AppTranslations {
       // Ledger
       'ledger_get': 'Aap Lenge',
       'ledger_give': 'Aap Denge',
+      'no_due': 'No Due',
       'no_transactions': 'Koi transaction nahi hai.',
       'add_transaction_gave': 'Transaction Jodein (Aapne Diya)',
       'add_transaction_got': 'Transaction Jodein (Aapko Mila)',

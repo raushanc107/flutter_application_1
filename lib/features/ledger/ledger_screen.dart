@@ -23,6 +23,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
   void initState() {
     super.initState();
     _currentCustomer = widget.customer;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _recalculateBalance(Provider.of<AppDatabase>(context, listen: false));
+    });
   }
 
   @override
@@ -59,13 +62,21 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     ),
                   ),
                   Text(
-                    '${_currentCustomer.currentBalance >= 0 ? AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'ledger_get') : AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'ledger_give')} ₹${_currentCustomer.currentBalance.abs().toStringAsFixed(0)}',
-
+                    _currentCustomer.currentBalance.abs() < 0.01
+                        ? AppTranslations.get(
+                            Provider.of<LanguageProvider>(
+                              context,
+                            ).locale.languageCode,
+                            'no_due',
+                          )
+                        : '${_currentCustomer.currentBalance > 0 ? AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'ledger_get') : AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'ledger_give')} ₹${_currentCustomer.currentBalance.abs().toStringAsFixed(0)}',
                     style: TextStyle(
                       fontSize: 12,
-                      color: _currentCustomer.currentBalance >= 0
-                          ? const Color(0xFF10B981)
-                          : const Color(0xFFEF4444),
+                      color: _currentCustomer.currentBalance.abs() < 0.01
+                          ? const Color(0xFF6B7280) // Neutral Gray
+                          : (_currentCustomer.currentBalance > 0
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFEF4444)),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -427,7 +438,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   Future<void> _deleteTransaction(AppDatabase database, Transaction tx) async {
     // Reverse the balance impact
-    final balanceAdjustment = tx.type == 'GAVE' ? tx.amount : -tx.amount;
+    // Reverse the balance impact: If GAVE (+), subtract. If GOT (-), add.
+    final balanceAdjustment = tx.type == 'GAVE' ? -tx.amount : tx.amount;
     final newBalance = _currentCustomer.currentBalance + balanceAdjustment;
 
     await database.deleteTransaction(tx);
@@ -805,11 +817,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
                   if (existingTransaction != null) {
                     // Reverse old impact
-                    balanceAdjustment += (existingTransaction.type == 'GAVE'
+                    // Reverse old impact: If Old was GAVE (+), subtract. If GOT (-), add.
+                    balanceAdjustment -= (existingTransaction.type == 'GAVE'
                         ? existingTransaction.amount
                         : -existingTransaction.amount);
-                    // Apply new impact
-                    balanceAdjustment -= (type == 'GAVE' ? amount : -amount);
+                    // Apply new impact: If New is GAVE (+), add. If GOT (-), subtract.
+                    balanceAdjustment += (type == 'GAVE' ? amount : -amount);
 
                     await database.updateTransaction(
                       existingTransaction.copyWith(
@@ -830,7 +843,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         notes: drift.Value(notes),
                       ),
                     );
-                    balanceAdjustment = type == 'GAVE' ? -amount : amount;
+                    balanceAdjustment = type == 'GAVE' ? amount : -amount;
                   }
 
                   final updatedCustomer = _currentCustomer.copyWith(
@@ -860,5 +873,34 @@ class _LedgerScreenState extends State<LedgerScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _recalculateBalance(AppDatabase database) async {
+    // Self-healing: Recalculate balance from all transactions to fix polarity issues
+    final transactions = await database.getTransactionsForCustomer(
+      _currentCustomer.id,
+    );
+    double newBalance = 0;
+    for (final tx in transactions) {
+      if (tx.type == 'GAVE') {
+        newBalance += tx.amount;
+      } else {
+        newBalance -= tx.amount;
+      }
+    }
+
+    // Update only if difference is significant (floating point safe check)
+    if ((newBalance - _currentCustomer.currentBalance).abs() > 0.01) {
+      final updatedCustomer = _currentCustomer.copyWith(
+        currentBalance: newBalance,
+        lastUpdated: DateTime.now(),
+      );
+      await database.updateCustomer(updatedCustomer);
+      if (mounted) {
+        setState(() {
+          _currentCustomer = updatedCustomer;
+        });
+      }
+    }
   }
 }

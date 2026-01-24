@@ -187,9 +187,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
-                        color: netBalance >= 0
-                            ? const Color(0xFF10B981)
-                            : const Color(0xFFEF4444),
+                        color: netBalance.abs() < 0.01
+                            ? const Color(0xFF6B7280)
+                            : (netBalance > 0
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFEF4444)),
                       ),
                     ),
                   ],
@@ -402,8 +404,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildCustomerItem(Customer customer) {
     final formatter = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
-    final isGet = customer.currentBalance >= 0;
-    final color = isGet ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+    final balance = customer.currentBalance;
+    final isZero = balance.abs() < 0.01;
+    final isGet = balance > 0;
+    final color = isZero
+        ? const Color(0xFF6B7280)
+        : (isGet ? const Color(0xFF10B981) : const Color(0xFFEF4444));
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -460,19 +466,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               Text(
-                isGet
-                    ? AppTranslations.get(
-                        Provider.of<LanguageProvider>(
-                          context,
-                        ).locale.languageCode,
-                        'ledger_get',
-                      )
-                    : AppTranslations.get(
-                        Provider.of<LanguageProvider>(
-                          context,
-                        ).locale.languageCode,
-                        'ledger_give',
-                      ),
+                AppTranslations.get(
+                  Provider.of<LanguageProvider>(context).locale.languageCode,
+                  isZero ? 'no_due' : (isGet ? 'ledger_get' : 'ledger_give'),
+                ),
                 style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
               ),
             ],
