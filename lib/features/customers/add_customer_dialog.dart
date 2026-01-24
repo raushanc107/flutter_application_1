@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import '../../core/localization/translations.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/database/database.dart';
@@ -18,6 +20,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
+  bool _isLoadingContact = false;
 
   @override
   void initState() {
@@ -28,6 +31,35 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
     );
   }
 
+  bool get _canImportContacts {
+    if (kIsWeb) return false; // Hide on Web to avoid unsupported browser issues
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
+  Future<void> _pickContact() async {
+    setState(() => _isLoadingContact = true);
+    try {
+      if (await FlutterContacts.requestPermission()) {
+        final contact = await FlutterContacts.openExternalPick();
+        if (contact != null) {
+          setState(() {
+            _nameController.text = contact.displayName;
+            if (contact.phones.isNotEmpty) {
+              // Strip validation characters if needed, keeping simple for now
+              _phoneController.text = contact.phones.first.number;
+            }
+          });
+        }
+      }
+    } catch (e) {
+      // Handle or ignore specific platform errors
+      debugPrint('Error picking contact: $e');
+    } finally {
+      setState(() => _isLoadingContact = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.customer != null;
@@ -35,19 +67,35 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
     return AlertDialog(
       backgroundColor: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        isEditing
-            ? AppTranslations.get(lang, 'edit_customer')
-            : AppTranslations.get(lang, 'new_customer'),
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white
-              : const Color(0xFF111827),
-        ),
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            isEditing
+                ? AppTranslations.get(lang, 'edit_customer')
+                : AppTranslations.get(lang, 'new_customer'),
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : const Color(0xFF111827),
+            ),
+          ),
+          if (!isEditing && _canImportContacts)
+            IconButton(
+              onPressed: _isLoadingContact ? null : _pickContact,
+              icon: _isLoadingContact
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.contacts, color: Color(0xFF4F46E5)),
+              tooltip: 'Import from Contacts',
+            ),
+        ],
       ),
-
       content: Form(
         key: _formKey,
         child: Column(
@@ -60,6 +108,13 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                suffixIcon: (!isEditing && _canImportContacts)
+                    ? IconButton(
+                        icon: const Icon(Icons.contacts_outlined),
+                        onPressed: _pickContact,
+                        color: const Color(0xFF6B7280),
+                      )
+                    : null,
               ),
               autofocus: true,
               validator: (value) {
