@@ -105,4 +105,143 @@ class AppDatabase extends _$AppDatabase {
       await updateCustomer(customer.copyWith(currentBalance: balance));
     }
   }
+
+  // Analytics methods for Reports & Insights
+  Future<List<Transaction>> getTransactionsByDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    return (select(transactions)
+          ..where((t) => t.date.isBetweenValues(startDate, endDate))
+          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+        .get();
+  }
+
+  Future<Map<String, dynamic>> getFinancialOverview(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final txns = await getTransactionsByDateRange(startDate, endDate);
+    final allCustomers = await getAllCustomers();
+
+    double totalGiven = 0;
+    double totalReceived = 0;
+    int gaveCount = 0;
+    int gotCount = 0;
+
+    for (final tx in txns) {
+      if (tx.type == 'GAVE') {
+        totalGiven += tx.amount;
+        gaveCount++;
+      } else {
+        totalReceived += tx.amount;
+        gotCount++;
+      }
+    }
+
+    int activeCustomers = 0;
+    double totalOutstanding = 0;
+    for (final customer in allCustomers) {
+      if (customer.currentBalance.abs() > 0.01) {
+        activeCustomers++;
+      }
+      totalOutstanding += customer.currentBalance;
+    }
+
+    return {
+      'totalGiven': totalGiven,
+      'totalReceived': totalReceived,
+      'totalTransactions': txns.length,
+      'gaveCount': gaveCount,
+      'gotCount': gotCount,
+      'activeCustomers': activeCustomers,
+      'totalCustomers': allCustomers.length,
+      'totalOutstanding': totalOutstanding,
+      'avgTransaction': txns.isEmpty
+          ? 0.0
+          : (totalGiven + totalReceived) / txns.length,
+    };
+  }
+
+  Future<Map<DateTime, Map<String, double>>> getCashFlowData(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final txns = await getTransactionsByDateRange(startDate, endDate);
+    final Map<DateTime, Map<String, double>> dailyData = {};
+
+    for (final tx in txns) {
+      final date = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      if (!dailyData.containsKey(date)) {
+        dailyData[date] = {'given': 0.0, 'received': 0.0};
+      }
+      if (tx.type == 'GAVE') {
+        dailyData[date]!['given'] = dailyData[date]!['given']! + tx.amount;
+      } else {
+        dailyData[date]!['received'] =
+            dailyData[date]!['received']! + tx.amount;
+      }
+    }
+
+    return dailyData;
+  }
+
+  Future<Map<String, dynamic>> getBalanceDistribution() async {
+    final allCustomers = await getAllCustomers();
+    int customersOweYou = 0;
+    int youOweCustomers = 0;
+    int settled = 0;
+    double totalPositive = 0;
+    double totalNegative = 0;
+
+    for (final customer in allCustomers) {
+      if (customer.currentBalance > 0.01) {
+        customersOweYou++;
+        totalPositive += customer.currentBalance;
+      } else if (customer.currentBalance < -0.01) {
+        youOweCustomers++;
+        totalNegative += customer.currentBalance.abs();
+      } else {
+        settled++;
+      }
+    }
+
+    return {
+      'customersOweYou': customersOweYou,
+      'youOweCustomers': youOweCustomers,
+      'settled': settled,
+      'totalPositive': totalPositive,
+      'totalNegative': totalNegative,
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> getTopCustomers({
+    required int limit,
+    required bool
+    isDebtors, // true for debtors (owe you), false for creditors (you owe)
+  }) async {
+    final allCustomers = await getAllCustomers();
+    final filtered = allCustomers.where((c) {
+      if (isDebtors) {
+        return c.currentBalance > 0.01;
+      } else {
+        return c.currentBalance < -0.01;
+      }
+    }).toList();
+
+    filtered.sort(
+      (a, b) => b.currentBalance.abs().compareTo(a.currentBalance.abs()),
+    );
+
+    return filtered
+        .take(limit)
+        .map(
+          (c) => {
+            'id': c.id,
+            'name': c.name,
+            'balance': c.currentBalance.abs(),
+          },
+        )
+        .toList();
+  }
 }

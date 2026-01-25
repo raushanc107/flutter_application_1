@@ -10,6 +10,7 @@ import 'components/factory_reset_dialog.dart';
 import '../../core/localization/translations.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/database/database.dart';
+import '../reports/reports_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -109,37 +110,13 @@ class SettingsScreen extends StatelessWidget {
                         ),
                         isDark: isDark,
                         onTap: () {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Coming Soon!'),
-                                duration: Duration(seconds: 1),
-                              ),
-                            );
-                          }
-                        },
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(
-                              0.2,
-                            ), // Light amber background
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.amber),
-                          ),
-                          child: const Text(
-                            'COMING SOON',
-                            style: TextStyle(
-                              color: Colors.amber,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ReportsScreen(),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ],
                   ),
