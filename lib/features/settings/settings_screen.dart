@@ -5,8 +5,11 @@ import '../../core/providers/theme_provider.dart';
 import '../../core/providers/language_provider.dart';
 import 'components/theme_selection_dialog.dart';
 import 'components/language_selection_dialog.dart';
+import 'components/factory_reset_dialog.dart';
 
 import '../../core/localization/translations.dart';
+import '../../core/services/backup_service.dart';
+import '../../core/database/database.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -105,7 +108,38 @@ class SettingsScreen extends StatelessWidget {
                           'reports_desc',
                         ),
                         isDark: isDark,
-                        onTap: () {},
+                        onTap: () {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Coming Soon!'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          }
+                        },
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(
+                              0.2,
+                            ), // Light amber background
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.amber),
+                          ),
+                          child: const Text(
+                            'COMING SOON',
+                            style: TextStyle(
+                              color: Colors.amber,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -127,7 +161,22 @@ class SettingsScreen extends StatelessWidget {
                           'export_desc',
                         ),
                         isDark: isDark,
-                        onTap: () {},
+                        onTap: () async {
+                          final database = Provider.of<AppDatabase>(
+                            context,
+                            listen: false,
+                          );
+                          final backupService = BackupService(database);
+                          try {
+                            await backupService.exportData();
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Export failed: $e')),
+                              );
+                            }
+                          }
+                        },
                       ),
                       const _Divider(),
                       _buildSettingItem(
@@ -141,7 +190,39 @@ class SettingsScreen extends StatelessWidget {
                           'import_desc',
                         ),
                         isDark: isDark,
-                        onTap: () {},
+                        onTap: () async {
+                          final database = Provider.of<AppDatabase>(
+                            context,
+                            listen: false,
+                          );
+                          final backupService = BackupService(database);
+                          try {
+                            final result = await backupService.importData();
+                            if (context.mounted) {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Import Successful'),
+                                  content: Text(
+                                    'Added ${result['customers']} customers and ${result['transactions']} transactions.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('OK'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Import failed: $e')),
+                              );
+                            }
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -414,57 +495,7 @@ class SettingsScreen extends StatelessWidget {
   void _showResetConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          AppTranslations.get(
-            Provider.of<LanguageProvider>(
-              context,
-              listen: false,
-            ).locale.languageCode,
-            'reset_confirm_title',
-          ),
-        ),
-        content: Text(
-          AppTranslations.get(
-            Provider.of<LanguageProvider>(
-              context,
-              listen: false,
-            ).locale.languageCode,
-            'reset_confirm_msg',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              AppTranslations.get(
-                Provider.of<LanguageProvider>(
-                  context,
-                  listen: false,
-                ).locale.languageCode,
-                'cancel',
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              // TODO: Implement actual data clearing logic
-              Navigator.pop(context);
-            },
-            child: Text(
-              AppTranslations.get(
-                Provider.of<LanguageProvider>(
-                  context,
-                  listen: false,
-                ).locale.languageCode,
-                'reset_btn',
-              ),
-              style: const TextStyle(color: Color(0xFFEF4444)),
-            ),
-          ),
-        ],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
+      builder: (context) => const FactoryResetDialog(),
     );
   }
 }

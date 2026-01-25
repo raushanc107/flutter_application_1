@@ -58,7 +58,7 @@ class AppTranslations {
       // Dialogs
       'reset_confirm_title': 'Factory Reset',
       'reset_confirm_msg':
-          'This will clear all customers and transactions. This action cannot be undone.',
+          'This will permanently delete all customers and transactions. This action cannot be undone.\n\nWe strongly recommend backing up your data before proceeding.',
       'reset_btn': 'RESET',
       'select_theme': 'Select Theme',
       'theme_light': 'Light',
@@ -142,7 +142,7 @@ class AppTranslations {
       // Dialogs
       'reset_confirm_title': 'फैक्टरी रीसेट',
       'reset_confirm_msg':
-          'यह सभी ग्राहकों और लेनदेन को साफ कर देगा। यह क्रिया पूर्ववत नहीं की जा सकती।',
+          'यह सभी ग्राहकों और लेनदेन को स्थायी रूप से हटा देगा। यह कार्रवाई पूर्ववत नहीं की जा सकती।\n\nहम आगे बढ़ने से पहले आपके डेटा का बैकअप लेने की दृढ़ता से सलाह देते हैं।',
       'reset_btn': 'रीसेट',
       'select_theme': 'थीम चुनें',
       'theme_light': 'लाइट',
@@ -224,7 +224,7 @@ class AppTranslations {
       // Dialogs
       'reset_confirm_title': 'Factory Reset',
       'reset_confirm_msg':
-          'Isse saare customers aur transactions delete ho jayenge. Yeh wapas nahi aa sakta.',
+          'Yeh saare customers aur transactions ko permanent delete kar dega. Yeh wapas nahi aa sakta.\n\nHum strongly recommend karte hain ki aage badhne se pehle aap apne data ka backup le lein.',
       'reset_btn': 'RESET',
       'select_theme': 'Theme Chunein',
       'theme_light': 'Light',

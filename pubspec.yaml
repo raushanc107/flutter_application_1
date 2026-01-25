@@ -48,6 +48,9 @@ dependencies:
   url_launcher: ^6.3.2
   shared_preferences: ^2.5.4
   flutter_contacts: ^1.1.9+2
+  file_picker: ^10.3.8
+  share_plus: ^12.0.1
+  universal_html: ^2.3.0
 
 dev_dependencies:
   flutter_test:
