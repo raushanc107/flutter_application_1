@@ -103,6 +103,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ),
         ),
       ),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? null // Use default dark theme bg
+          : const Color(0xFFF3F4F6), // Light Gray for Light Mode
       body: Stack(
         children: [
           _buildTransactionList(database),
@@ -202,12 +205,27 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ? const Color(0xFFEF4444)
         : const Color(0xFF10B981);
 
+    Color badgeBgColor;
+    Color badgeTextColor;
+    Color badgeMonthColor;
+
+    if (Theme.of(context).brightness == Brightness.dark) {
+      badgeBgColor = const Color(0xFF374151);
+      badgeTextColor = Colors.white;
+      badgeMonthColor = const Color(0xFF9CA3AF);
+    } else {
+      badgeBgColor = Colors.white; // White Badge on Gray Background
+      badgeTextColor = const Color(0xFF111827); // Standard Text
+      badgeMonthColor = const Color(0xFF6B7280); // Secondary Text
+    }
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onLongPress: () => _showTransactionOptions(context, database, tx),
         child: Container(
           decoration: BoxDecoration(
+            color: Colors.transparent, // Transparent to show Gray Scaffold BG
             border: Border(
               bottom: BorderSide(
                 color: Theme.of(context).brightness == Brightness.dark
@@ -227,10 +245,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFF374151)
-                            : const Color(0xFFF3F4F6),
+                        color: badgeBgColor,
                         borderRadius: BorderRadius.circular(8),
+                        // Border removed as Angular doesn't have it (relies on shadow/contrast)
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -240,11 +257,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white
-                                  : const Color(0xFF111827),
+                              color: badgeTextColor,
                             ),
                           ),
                           Text(
@@ -252,11 +265,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? const Color(0xFF9CA3AF)
-                                  : const Color(0xFF6B7280),
+                              color: badgeMonthColor,
                             ),
                           ),
                         ],
