@@ -20,6 +20,24 @@
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"
+        },
+        {
+            "name": "flutter_application_1 (Chrome)",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "chrome"
+        },
+        {
+            "name": "flutter_application_1 (Edge)",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "edge"
+        },
+        {
+            "name": "flutter_application_1 (Web Server)",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "web-server"
         }
     ]
 }
