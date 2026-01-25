@@ -183,6 +183,16 @@ class AppDatabase extends _$AppDatabase {
       }
     }
 
+    // Limit to last 30 data points for performance
+    final sortedDates = dailyData.keys.toList()..sort();
+    if (sortedDates.length > 30) {
+      final limitedData = <DateTime, Map<String, double>>{};
+      for (final date in sortedDates.skip(sortedDates.length - 30)) {
+        limitedData[date] = dailyData[date]!;
+      }
+      return limitedData;
+    }
+
     return dailyData;
   }
 

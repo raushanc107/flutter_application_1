@@ -135,7 +135,9 @@ class CashFlowChart extends StatelessWidget {
                         sideTitles: SideTitles(
                           showTitles: true,
                           reservedSize: 30,
-                          interval: 1,
+                          interval: sortedDates.length > 10
+                              ? (sortedDates.length / 5).ceilToDouble()
+                              : 1,
                           getTitlesWidget: (value, meta) {
                             if (value.toInt() >= 0 &&
                                 value.toInt() < sortedDates.length) {
@@ -159,6 +161,7 @@ class CashFlowChart extends StatelessWidget {
                         sideTitles: SideTitles(
                           showTitles: true,
                           reservedSize: 40,
+                          interval: null,
                           getTitlesWidget: (value, meta) {
                             return Text(
                               '₹${(value / 1000).toStringAsFixed(0)}k',
@@ -172,6 +175,8 @@ class CashFlowChart extends StatelessWidget {
                       ),
                     ),
                     borderData: FlBorderData(show: false),
+                    lineTouchData: LineTouchData(enabled: false),
+                    clipData: FlClipData.all(),
                     lineBarsData: [
                       // Money Given Line
                       LineChartBarData(
@@ -185,14 +190,14 @@ class CashFlowChart extends StatelessWidget {
                               ),
                             )
                             .toList(),
-                        isCurved: true,
+                        isCurved: false,
                         color: const Color(0xFF10B981),
-                        barWidth: 3,
+                        barWidth: 2,
                         isStrokeCapRound: true,
                         dotData: const FlDotData(show: false),
                         belowBarData: BarAreaData(
                           show: true,
-                          color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                          color: const Color(0xFF10B981).withOpacity(0.1),
                         ),
                       ),
                       // Money Received Line
@@ -207,18 +212,19 @@ class CashFlowChart extends StatelessWidget {
                               ),
                             )
                             .toList(),
-                        isCurved: true,
+                        isCurved: false,
                         color: const Color(0xFFEF4444),
-                        barWidth: 3,
+                        barWidth: 2,
                         isStrokeCapRound: true,
                         dotData: const FlDotData(show: false),
                         belowBarData: BarAreaData(
                           show: true,
-                          color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                          color: const Color(0xFFEF4444).withOpacity(0.1),
                         ),
                       ),
                     ],
                   ),
+                  duration: Duration.zero,
                 ),
               ),
             ],

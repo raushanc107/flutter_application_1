@@ -99,6 +99,8 @@ class BalanceDistributionChart extends StatelessWidget {
                   PieChartData(
                     sectionsSpace: 2,
                     centerSpaceRadius: 40,
+                    pieTouchData: PieTouchData(enabled: false),
+                    borderData: FlBorderData(show: false),
                     sections: [
                       if (customersOweYou > 0)
                         PieChartSectionData(
@@ -111,6 +113,7 @@ class BalanceDistributionChart extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
+                          borderSide: BorderSide.none,
                         ),
                       if (youOweCustomers > 0)
                         PieChartSectionData(
@@ -123,6 +126,7 @@ class BalanceDistributionChart extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
+                          borderSide: BorderSide.none,
                         ),
                       if (settled > 0)
                         PieChartSectionData(
@@ -135,9 +139,11 @@ class BalanceDistributionChart extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
+                          borderSide: BorderSide.none,
                         ),
                     ],
                   ),
+                  duration: Duration.zero,
                 ),
               ),
               const SizedBox(width: 16),

@@ -40,123 +40,138 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final langProvider = Provider.of<LanguageProvider>(context);
     final database = Provider.of<AppDatabase>(context);
     final dateRange = _getDateRange();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          AppTranslations.get(
-            langProvider.locale.languageCode,
-            'reports_insights',
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
+                : [const Color(0xFFF8FAFC), const Color(0xFFEEF2FF)],
           ),
         ),
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: 0,
-        surfaceTintColor: Theme.of(context).appBarTheme.surfaceTintColor,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xFF334155)
-                : const Color(0xFFE5E7EB),
-            height: 1,
-          ),
-        ),
-      ),
-      body: FutureBuilder(
-        future: _isInitialLoad
-            ? database.getFinancialOverview(dateRange.$1, dateRange.$2)
-            : null,
-        builder: (context, snapshot) {
-          // Show loading screen on initial load
-          if (_isInitialLoad &&
-              snapshot.connectionState == ConnectionState.waiting) {
-            return _buildLoadingScreen(context, langProvider);
-          }
-
-          // Mark initial load as complete
-          if (_isInitialLoad &&
-              snapshot.connectionState == ConnectionState.done) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                setState(() {
-                  _isInitialLoad = false;
-                });
-              }
-            });
-          }
-
-          // Show the actual content
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                // Date Range Selector
-                DateRangeSelector(
-                  selectedRange: _selectedRange,
-                  customStartDate: _customStartDate,
-                  customEndDate: _customEndDate,
-                  onRangeChanged: (range, start, end) {
-                    setState(() {
-                      _selectedRange = range;
-                      _customStartDate = start;
-                      _customEndDate = end;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                // Financial Overview Cards
-                FinancialOverviewCards(
-                  startDate: dateRange.$1,
-                  endDate: dateRange.$2,
-                ),
-                const SizedBox(height: 24),
-                // Quick Insights
-                QuickInsightsSection(
-                  startDate: dateRange.$1,
-                  endDate: dateRange.$2,
-                ),
-                const SizedBox(height: 24),
-                // Cash Flow Trend
-                _buildSectionTitle(
-                  context,
-                  AppTranslations.get(
-                    langProvider.locale.languageCode,
-                    'cash_flow_trend',
+        child: Column(
+          children: [
+            // Custom Header
+            Container(
+              padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE5E7EB),
                   ),
-                  Icons.trending_up,
                 ),
-                const SizedBox(height: 12),
-                CashFlowChart(startDate: dateRange.$1, endDate: dateRange.$2),
-                const SizedBox(height: 24),
-                // Balance Distribution
-                _buildSectionTitle(
-                  context,
-                  AppTranslations.get(
-                    langProvider.locale.languageCode,
-                    'balance_distribution',
-                  ),
-                  Icons.pie_chart_outline,
+              ),
+              child: SizedBox(
+                height: 60,
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => Navigator.pop(context),
+                      color: isDark ? Colors.white : const Color(0xFF111827),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      AppTranslations.get(
+                        langProvider.locale.languageCode,
+                        'reports_insights',
+                      ),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : const Color(0xFF111827),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                const BalanceDistributionChart(),
-                const SizedBox(height: 24),
-                // Top Customers
-                _buildSectionTitle(
-                  context,
-                  AppTranslations.get(
-                    langProvider.locale.languageCode,
-                    'top_customers',
-                  ),
-                  Icons.people_outline,
-                ),
-                const SizedBox(height: 12),
-                const TopCustomersChart(),
-                const SizedBox(height: 32),
-              ],
+              ),
             ),
-          );
-        },
+            // Body Content
+            Expanded(
+              child: FutureBuilder(
+                future: _isInitialLoad
+                    ? database.getFinancialOverview(dateRange.$1, dateRange.$2)
+                    : null,
+                builder: (context, snapshot) {
+                  // Show loading screen on initial load
+                  if (_isInitialLoad &&
+                      snapshot.connectionState == ConnectionState.waiting) {
+                    return _buildLoadingScreen(context, langProvider);
+                  }
+
+                  // Mark initial load as complete
+                  if (_isInitialLoad &&
+                      snapshot.connectionState == ConnectionState.done) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _isInitialLoad = false;
+                        });
+                      }
+                    });
+                  }
+
+                  // Show the actual content
+                  return SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 16),
+                        // Date Range Selector
+                        DateRangeSelector(
+                          selectedRange: _selectedRange,
+                          customStartDate: _customStartDate,
+                          customEndDate: _customEndDate,
+                          onRangeChanged: (range, start, end) {
+                            setState(() {
+                              _selectedRange = range;
+                              _customStartDate = start;
+                              _customEndDate = end;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        // Financial Overview Cards
+                        FinancialOverviewCards(
+                          startDate: dateRange.$1,
+                          endDate: dateRange.$2,
+                        ),
+                        const SizedBox(height: 24),
+                        // Quick Insights
+                        QuickInsightsSection(
+                          startDate: dateRange.$1,
+                          endDate: dateRange.$2,
+                        ),
+                        const SizedBox(height: 24),
+                        // Top Customers
+                        _buildSectionTitle(
+                          context,
+                          AppTranslations.get(
+                            langProvider.locale.languageCode,
+                            'top_customers',
+                          ),
+                          Icons.people_outline,
+                        ),
+                        const SizedBox(height: 12),
+                        const TopCustomersChart(),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
