@@ -131,6 +131,9 @@ class BackupService {
       }
     }
 
+    // 5. Recalculate all balances to ensure consistency
+    await _db.recalculateAllBalances();
+
     return {'customers': addedCustomers, 'transactions': addedTransactions};
   }
 }

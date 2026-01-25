@@ -81,4 +81,28 @@ class AppDatabase extends _$AppDatabase {
       transactions,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
+
+  Future<void> recalculateAllBalances() async {
+    final allCustomers = await getAllCustomers();
+    for (final customer in allCustomers) {
+      final customerTransactions = await (select(
+        transactions,
+      )..where((t) => t.customerId.equals(customer.id))).get();
+
+      double balance = 0;
+      for (final tx in customerTransactions) {
+        // GAVE: You gave money (Credit) -> Positive
+        // GOT: You got money (Payment) -> Negative (reduces credit)
+        // Check logic in Dashboard: Balance > 0 is "You will get" (Credit).
+        // Check logic in Ledger: GAVE is +ve effect (if deleting gave, subtract).
+        if (tx.type == 'GAVE') {
+          balance += tx.amount;
+        } else {
+          balance -= tx.amount;
+        }
+      }
+
+      await updateCustomer(customer.copyWith(currentBalance: balance));
+    }
+  }
 }
