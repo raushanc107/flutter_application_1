@@ -91,7 +91,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                suffixIcon: (!isEditing && _canImportContacts)
+                suffixIcon: (_canImportContacts)
                     ? IconButton(
                         icon: _isLoadingContact
                             ? const SizedBox(
