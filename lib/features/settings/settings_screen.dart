@@ -6,6 +6,7 @@ import '../../core/providers/language_provider.dart';
 import 'components/theme_selection_dialog.dart';
 import 'components/language_selection_dialog.dart';
 import 'components/factory_reset_dialog.dart';
+import 'components/reminder_template_dialog.dart';
 
 import '../../core/localization/translations.dart';
 import '../../core/services/backup_service.dart';
@@ -199,6 +200,25 @@ class SettingsScreen extends StatelessWidget {
                               );
                             }
                           }
+                        },
+                      ),
+                    ],
+                  ),
+                  _buildSection(
+                    title: 'COMMUNICATION',
+                    isDark: isDark,
+                    children: [
+                      _buildSettingItem(
+                        icon: Icons.message_outlined,
+                        label: 'Reminder Templates',
+                        description: 'Customize WhatsApp and SMS messages',
+                        isDark: isDark,
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) =>
+                                const ReminderTemplateDialog(),
+                          );
                         },
                       ),
                     ],

@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/database/database.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/language_provider.dart';
+
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../core/localization/translations.dart';
+import '../../core/services/communication_service.dart';
+import '../customers/add_customer_dialog.dart';
 
 class LedgerScreen extends StatefulWidget {
   final Customer customer;
@@ -106,16 +111,186 @@ class _LedgerScreenState extends State<LedgerScreen> {
       backgroundColor: Theme.of(context).brightness == Brightness.dark
           ? null // Use default dark theme bg
           : const Color(0xFFF3F4F6), // Light Gray for Light Mode
-      body: Stack(
+      body: Column(
         children: [
-          _buildTransactionList(database),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: _buildBottomActionButtons(context, database),
+          _buildReminderBar(context),
+          Expanded(
+            child: Stack(
+              children: [
+                _buildTransactionList(database),
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: _buildBottomActionButtons(context, database),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildReminderBar(BuildContext context) {
+    if (_currentCustomer.currentBalance <= 0) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF374151)
+                : const Color(0xFFE5E7EB),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildReminderButton(
+              context,
+              icon: FontAwesomeIcons.whatsapp,
+              label: 'Remind',
+              color: const Color(0xFF25D366),
+              onTap: () => _handleReminder(context, isWhatsApp: true),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildReminderButton(
+              context,
+              icon: Icons.message,
+              label: 'Remind',
+              color: const Color(0xFF3B82F6),
+              onTap: () => _handleReminder(context, isWhatsApp: false),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReminderButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleReminder(
+    BuildContext context, {
+    required bool isWhatsApp,
+  }) async {
+    if (_currentCustomer.phoneNumber.trim().isEmpty) {
+      await showDialog(
+        context: context,
+        builder: (context) => AddCustomerDialog(customer: _currentCustomer),
+      );
+      // Refresh customr data
+      if (context.mounted) {
+        final db = Provider.of<AppDatabase>(context, listen: false);
+        final updated = await db.getCustomerById(_currentCustomer.id);
+        if (updated != null) {
+          setState(() {
+            _currentCustomer = updated;
+          });
+          if (updated.phoneNumber.trim().isEmpty) return;
+        } else {
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+
+    final balance = _currentCustomer.currentBalance;
+    final absBalance = balance.abs();
+    final formatter = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
+    final amountStr = formatter.format(absBalance);
+
+    final prefs = await SharedPreferences.getInstance();
+    String template;
+
+    if (balance > 0) {
+      // You will get (Credit)
+      template =
+          prefs.getString('template_credit') ??
+          "Hello {name}, your pending balance is {amount}. Please pay at your earliest convenience.";
+    } else {
+      // You will give (Debit - unusual to remind but valid)
+      template =
+          prefs.getString('template_debit') ??
+          "Hello {name}, I have a credit of {amount} with you.";
+    }
+
+    final message = template
+        .replaceAll('{name}', _currentCustomer.name)
+        .replaceAll('{amount}', amountStr);
+
+    try {
+      bool sent;
+      if (isWhatsApp) {
+        sent = await CommunicationService.sendWhatsAppReminder(
+          _currentCustomer.phoneNumber,
+          message,
+        );
+      } else {
+        sent = await CommunicationService.sendSmsReminder(
+          _currentCustomer.phoneNumber,
+          message,
+        );
+      }
+
+      if (!sent && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${isWhatsApp ? "WhatsApp" : "SMS"} could not be launched.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
   }
 
   Widget _buildTransactionList(AppDatabase database) {

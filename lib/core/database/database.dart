@@ -48,6 +48,10 @@ class AppDatabase extends _$AppDatabase {
     await delete(customers).delete(customer);
   }
 
+  Future<Customer?> getCustomerById(String id) {
+    return (select(customers)..where((c) => c.id.equals(id))).getSingleOrNull();
+  }
+
   Future<void> deleteAllData() async {
     await delete(transactions).go();
     await delete(customers).go();
