@@ -5,8 +5,6 @@ import '../../core/localization/translations.dart';
 import '../../core/database/database.dart';
 import 'components/date_range_selector.dart';
 import 'components/financial_overview_cards.dart';
-import 'components/cash_flow_chart.dart';
-import 'components/balance_distribution_chart.dart';
 import 'components/top_customers_chart.dart';
 import 'components/quick_insights_section.dart';
 

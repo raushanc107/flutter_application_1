@@ -392,7 +392,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                 itemCount: customers.length,
                 itemBuilder: (context, index) {
                   final customer = customers[index];
