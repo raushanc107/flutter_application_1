@@ -8,22 +8,27 @@ class InterestService {
   InterestService(this._db);
 
   /// Checks all transactions and generates interest entries if due.
-  Future<void> checkAndGenerateInterest() async {
-    // 1. Get all transactions that have interest enabled
-    // We filter in Dart because we might not have a complex WHERE clause for nullable available easily via DAO yet,
-    // or we can use the select statement.
+  Future<bool> checkAndGenerateInterest() async {
+    bool totalChanges = false;
     final allTransactions = await _db.getAllTransactions();
     final interestTransactions = allTransactions
         .where((t) => t.interestRate != null && t.interestRate! > 0)
         .toList();
 
     for (final parentTx in interestTransactions) {
-      await _processTransactionInterest(parentTx);
+      final changed = await _processTransactionInterest(parentTx);
+      if (changed) totalChanges = true;
     }
+
+    if (totalChanges) {
+      await _db.recalculateAllBalances();
+    }
+
+    return totalChanges;
   }
 
-  Future<void> _processTransactionInterest(Transaction parentTx) async {
-    if (parentTx.interestPeriod == null) return;
+  Future<bool> _processTransactionInterest(Transaction parentTx) async {
+    if (parentTx.interestPeriod == null) return false;
 
     final now = DateTime.now();
     // Start date for calculation:
@@ -33,7 +38,7 @@ class InterestService {
         parentTx.lastInterestCalculatedDate ?? parentTx.date;
 
     // Safety check: Don't calculate for future dates
-    if (lastCalculated.isAfter(now)) return;
+    if (lastCalculated.isAfter(now)) return false;
 
     DateTime nextDueDate = _getNextDueDate(
       lastCalculated,
@@ -103,6 +108,8 @@ class InterestService {
       );
       await _db.updateTransaction(updatedParent);
     }
+
+    return changesMade;
   }
 
   double _calculateInterestAmount(Transaction tx) {

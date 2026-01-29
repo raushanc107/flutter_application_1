@@ -165,7 +165,15 @@ class AppDatabase extends _$AppDatabase {
         }
       }
 
-      await updateCustomer(customer.copyWith(currentBalance: balance));
+      // Only update if balance has changed significantly
+      if ((balance - customer.currentBalance).abs() > 0.01) {
+        await updateCustomer(
+          customer.copyWith(
+            currentBalance: balance,
+            lastUpdated: DateTime.now(),
+          ),
+        );
+      }
     }
   }
 
