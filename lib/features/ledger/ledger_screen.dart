@@ -301,9 +301,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final transactions = snapshot.data!.reversed.toList();
+        final allTransactions = snapshot.data!;
 
-        if (transactions.isEmpty) {
+        if (allTransactions.isEmpty) {
           return Center(
             child: Text(
               AppTranslations.get(
@@ -314,18 +314,41 @@ class _LedgerScreenState extends State<LedgerScreen> {
           );
         }
 
+        // Grouping logic
+        final List<Transaction> primaryTransactions = [];
+        final Map<String, List<Transaction>> interestMap = {};
+
+        for (final tx in allTransactions) {
+          if (tx.isInterestEntry && tx.parentTransactionId != null) {
+            interestMap.putIfAbsent(tx.parentTransactionId!, () => []).add(tx);
+          } else {
+            primaryTransactions.add(tx);
+          }
+        }
+
+        // Sort primary transactions descending as they come from DB stream
+        // (Assuming DB already sorts, but snapshot might be out of order if we weren't careful)
+        // Actually, previous task ensured DB sorts desc.
+
         return ListView.builder(
           padding: const EdgeInsets.only(bottom: 100),
-          itemCount: transactions.length,
+          itemCount: primaryTransactions.length,
           itemBuilder: (context, index) {
-            final tx = transactions[index];
-            final prevTx = index > 0 ? transactions[index - 1] : null;
+            final tx = primaryTransactions[index];
+            final prevTx = index > 0 ? primaryTransactions[index - 1] : null;
             final showYear = prevTx == null || tx.date.year != prevTx.date.year;
+
+            final associatedInterests = interestMap[tx.id] ?? [];
 
             return Column(
               children: [
                 if (showYear) _buildYearSeparator(tx.date.year.toString()),
-                _buildTransactionItem(context, database, tx),
+                _buildExpandableTransactionItem(
+                  context,
+                  database,
+                  tx,
+                  associatedInterests,
+                ),
               ],
             );
           },
@@ -365,6 +388,328 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  Widget _buildExpandableTransactionItem(
+    BuildContext context,
+    AppDatabase database,
+    Transaction tx,
+    List<Transaction> associatedInterests,
+  ) {
+    if (associatedInterests.isEmpty) {
+      return _buildTransactionItem(context, database, tx);
+    }
+
+    final totalInterest = associatedInterests.fold(
+      0.0,
+      (sum, item) => sum + item.amount,
+    );
+    final netAmount = tx.amount + totalInterest;
+
+    final formatter = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
+    final isGave = tx.type == 'GAVE';
+    final amountColor = isGave
+        ? const Color(0xFFEF4444)
+        : const Color(0xFF10B981);
+
+    bool isExpanded = false;
+    return StatefulBuilder(
+      builder: (context, setTileState) {
+        return Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF374151)
+                      : const Color(0xFFE5E7EB),
+                ),
+              ),
+            ),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.only(
+                left: 16,
+                right: 12,
+                top: 8,
+                bottom: 8,
+              ),
+              leading: _buildBadge(tx),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        formatter.format(netAmount),
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: amountColor,
+                        ),
+                      ),
+                      Text(
+                        isGave
+                            ? AppTranslations.get(
+                                Provider.of<LanguageProvider>(
+                                  context,
+                                ).locale.languageCode,
+                                'transaction_gave',
+                              )
+                            : AppTranslations.get(
+                                Provider.of<LanguageProvider>(
+                                  context,
+                                ).locale.languageCode,
+                                'transaction_got',
+                              ),
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 4), // TIGHT GAP
+                  AnimatedRotation(
+                    turns: isExpanded ? 0 : 0.25,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(
+                      Icons.expand_more,
+                      size: 18,
+                      color: Color(0xFF8B5CF6),
+                    ),
+                  ),
+                ],
+              ),
+              onExpansionChanged: (expanded) {
+                setTileState(() {
+                  isExpanded = expanded;
+                });
+              },
+              title: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onLongPress: () =>
+                    _showTransactionOptions(context, database, tx),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tx.notes?.isNotEmpty == true
+                                ? tx.notes!
+                                : AppTranslations.get(
+                                    Provider.of<LanguageProvider>(
+                                      context,
+                                    ).locale.languageCode,
+                                    'no_details',
+                                  ),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white
+                                  : const Color(0xFF111827),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 11,
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? const Color(0xFF9CA3AF)
+                                    : const Color(0xFF6B7280),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                DateFormat('hh:mm a').format(tx.date),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? const Color(0xFF9CA3AF)
+                                      : const Color(0xFF6B7280),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF8B5CF6,
+                                    ).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    "${formatter.format(tx.amount)} + ${formatter.format(totalInterest)}",
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF8B5CF6),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              children: associatedInterests
+                  .map(
+                    (interest) =>
+                        _buildInterestSubItem(context, database, interest),
+                  )
+                  .toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBadge(Transaction tx) {
+    Color badgeBgColor;
+    Color badgeTextColor;
+    Color badgeMonthColor;
+
+    if (tx.isInterestEntry) {
+      badgeBgColor = const Color(0xFF8B5CF6).withValues(alpha: 0.2);
+      badgeTextColor = const Color(0xFF8B5CF6);
+      badgeMonthColor = const Color(0xFF8B5CF6);
+    } else if (Theme.of(context).brightness == Brightness.dark) {
+      badgeBgColor = const Color(0xFF374151);
+      badgeTextColor = Colors.white;
+      badgeMonthColor = const Color(0xFF9CA3AF);
+    } else {
+      badgeBgColor = Colors.white;
+      badgeTextColor = const Color(0xFF111827);
+      badgeMonthColor = const Color(0xFF6B7280);
+    }
+
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        color: badgeBgColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            DateFormat('dd').format(tx.date),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: badgeTextColor,
+            ),
+          ),
+          Text(
+            DateFormat('MMM').format(tx.date).toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: badgeMonthColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInterestSubItem(
+    BuildContext context,
+    AppDatabase database,
+    Transaction tx,
+  ) {
+    final formatter = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
+    final isGave = tx.type == 'GAVE';
+    final amountColor = isGave
+        ? const Color(0xFFEF4444)
+        : const Color(0xFF10B981);
+
+    return InkWell(
+      onLongPress: () => _showTransactionOptions(context, database, tx),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        margin: const EdgeInsets.only(left: 66), // Align with parent content
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF374151)
+                  : const Color(0xFFE5E7EB),
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tx.notes ?? "",
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  Text(
+                    DateFormat('dd MMM yyyy').format(tx.date),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF9CA3AF),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              formatter.format(tx.amount),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: amountColor.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTransactionItem(
     BuildContext context,
     AppDatabase database,
@@ -384,7 +729,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
     Color badgeTextColor;
     Color badgeMonthColor;
 
-    if (Theme.of(context).brightness == Brightness.dark) {
+    if (tx.isInterestEntry) {
+      // Distinct look for Interest Entries
+      badgeBgColor = const Color(
+        0xFF8B5CF6,
+      ).withValues(alpha: 0.2); // Purple tint
+      badgeTextColor = const Color(0xFF8B5CF6);
+      badgeMonthColor = const Color(0xFF8B5CF6);
+    } else if (Theme.of(context).brightness == Brightness.dark) {
       badgeBgColor = const Color(0xFF374151);
       badgeTextColor = Colors.white;
       badgeMonthColor = const Color(0xFF9CA3AF);
@@ -409,7 +761,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
               ),
             ),
           ),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 12,
+            top: 8,
+            bottom: 8,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -422,27 +779,34 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       decoration: BoxDecoration(
                         color: badgeBgColor,
                         borderRadius: BorderRadius.circular(8),
-                        // Border removed as Angular doesn't have it (relies on shadow/contrast)
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            DateFormat('dd').format(tx.date),
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: badgeTextColor,
+                          if (tx.isInterestEntry)
+                            const Icon(
+                              Icons.percent,
+                              size: 24,
+                              color: Color(0xFF8B5CF6),
+                            )
+                          else ...[
+                            Text(
+                              DateFormat('dd').format(tx.date),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: badgeTextColor,
+                              ),
                             ),
-                          ),
-                          Text(
-                            DateFormat('MMM').format(tx.date).toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: badgeMonthColor,
+                            Text(
+                              DateFormat('MMM').format(tx.date).toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: badgeMonthColor,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),
@@ -474,8 +838,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
+                          // Badges Row
                           Row(
                             children: [
+                              // Time
                               Icon(
                                 Icons.access_time,
                                 size: 12,
@@ -497,22 +863,88 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                       : const Color(0xFF6B7280),
                                 ),
                               ),
+
+                              // Interest Info Badge for Parent Transaction
+                              if (tx.interestRate != null &&
+                                  tx.interestRate! > 0) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF4F46E5,
+                                    ).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: const Color(
+                                        0xFF4F46E5,
+                                      ).withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    "${tx.interestRate}% ${tx.interestPeriod == 'MONTHLY' ? 'Mo' : (tx.interestPeriod == 'YEARLY' ? 'Yr' : 'Day')}",
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF4F46E5),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
+
+                          // Reference Badge for Interest Entry
+                          if (tx.isInterestEntry &&
+                              tx.parentTransactionId != null) ...[
+                            const SizedBox(height: 4),
+                            FutureBuilder<Transaction?>(
+                              future: database.getTransactionById(
+                                tx.parentTransactionId!,
+                              ),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData)
+                                  return const SizedBox.shrink();
+                                final parent = snapshot.data!;
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF8B5CF6,
+                                    ).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    "Ref: ${parent.type == 'GAVE' ? 'Gave' : 'Got'} ₹${parent.amount.toStringAsFixed(0)}",
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF8B5CF6),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     formatter.format(tx.amount),
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
                       color: amountColor,
                     ),
@@ -532,7 +964,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             'transaction_got',
                           ),
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF6B7280),
                     ),
@@ -694,12 +1126,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   Future<void> _deleteTransaction(AppDatabase database, Transaction tx) async {
-    // Reverse the balance impact
-    // Reverse the balance impact: If GAVE (+), subtract. If GOT (-), add.
-    final balanceAdjustment = tx.type == 'GAVE' ? -tx.amount : tx.amount;
-    final newBalance = _currentCustomer.currentBalance + balanceAdjustment;
-
-    await database.deleteTransaction(tx);
+    // deleteTransactionWithChildren returns the total balance impact (parent + interest entries)
+    final totalImpact = await database.deleteTransactionWithChildren(tx);
+    final newBalance = _currentCustomer.currentBalance + totalImpact;
 
     final updatedCustomer = _currentCustomer.copyWith(
       currentBalance: newBalance,
@@ -808,6 +1237,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
       text: existingTransaction?.notes ?? '',
     );
 
+    // Interest State
+    bool isInterestEnabled = existingTransaction?.interestRate != null;
+    final interestRateController = TextEditingController(
+      text: existingTransaction?.interestRate?.toString() ?? '',
+    );
+    String interestPeriod =
+        existingTransaction?.interestPeriod ?? 'MONTHLY'; // Default keys
+
     DateTime selectedDate = existingTransaction?.date ?? DateTime.now();
     TimeOfDay selectedTime = TimeOfDay.fromDateTime(selectedDate);
 
@@ -816,6 +1253,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
+            scrollable: true,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -851,189 +1289,317 @@ class _LedgerScreenState extends State<LedgerScreen> {
             ),
             content: Form(
               key: formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: amountController,
-                      decoration: InputDecoration(
-                        labelText: AppTranslations.get(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: amountController,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    decoration: InputDecoration(
+                      labelText: AppTranslations.get(
+                        Provider.of<LanguageProvider>(
+                          context,
+                        ).locale.languageCode,
+                        'amount_label',
+                      ),
+                      prefixText: '₹ ',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return AppTranslations.get(
                           Provider.of<LanguageProvider>(
                             context,
                           ).locale.languageCode,
-                          'amount_label',
-                        ),
-                        prefixText: '₹ ',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      keyboardType: TextInputType.number,
-                      autofocus: true,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return AppTranslations.get(
-                            Provider.of<LanguageProvider>(
-                              context,
-                            ).locale.languageCode,
-                            'amount_error',
-                          );
-                        }
-                        final amount = double.tryParse(value);
-                        if (amount == null || amount <= 0) {
-                          return AppTranslations.get(
-                            Provider.of<LanguageProvider>(
-                              context,
-                            ).locale.languageCode,
-                            'amount_invalid',
-                          );
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate,
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime(2101),
-                                builder: (context, child) {
-                                  return Theme(
-                                    data: Theme.of(context).copyWith(
-                                      colorScheme: Theme.of(context).colorScheme
-                                          .copyWith(
-                                            primary: const Color(0xFF4F46E5),
-                                          ),
-                                    ),
-                                    child: child!,
-                                  );
-                                },
-                              );
-                              if (picked != null) {
-                                setDialogState(() {
-                                  selectedDate = picked;
-                                });
-                              }
-                            },
-                            child: InputDecorator(
-                              decoration: InputDecoration(
-                                labelText: AppTranslations.get(
-                                  Provider.of<LanguageProvider>(
-                                    context,
-                                  ).locale.languageCode,
-                                  'date_label',
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      DateFormat(
-                                        'dd MMM yyyy',
-                                      ).format(selectedDate),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const Icon(Icons.calendar_today, size: 18),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showTimePicker(
-                                context: context,
-                                initialTime: selectedTime,
-                                builder: (context, child) {
-                                  return Theme(
-                                    data: Theme.of(context).copyWith(
-                                      colorScheme: Theme.of(context).colorScheme
-                                          .copyWith(
-                                            primary: const Color(0xFF4F46E5),
-                                          ),
-                                    ),
-                                    child: child!,
-                                  );
-                                },
-                              );
-                              if (picked != null) {
-                                setDialogState(() {
-                                  selectedTime = picked;
-                                });
-                              }
-                            },
-                            child: InputDecorator(
-                              decoration: InputDecoration(
-                                labelText: AppTranslations.get(
-                                  Provider.of<LanguageProvider>(
-                                    context,
-                                  ).locale.languageCode,
-                                  'time_label',
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      selectedTime.format(context),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const Icon(Icons.access_time, size: 18),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: notesController,
-                      decoration: InputDecoration(
-                        labelText: AppTranslations.get(
+                          'amount_error',
+                        );
+                      }
+                      final amount = double.tryParse(value);
+                      if (amount == null || amount <= 0) {
+                        return AppTranslations.get(
                           Provider.of<LanguageProvider>(
                             context,
                           ).locale.languageCode,
-                          'notes_label',
-                        ),
-                        hintText: '',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          'amount_invalid',
+                        );
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Date and Time Row (Reordered to be second)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDate,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2101),
+                              builder: (context, child) {
+                                return Theme(
+                                  data: Theme.of(context).copyWith(
+                                    colorScheme: Theme.of(context).colorScheme
+                                        .copyWith(
+                                          primary: const Color(0xFF4F46E5),
+                                        ),
+                                  ),
+                                  child: child!,
+                                );
+                              },
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                selectedDate = picked;
+                              });
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: AppTranslations.get(
+                                Provider.of<LanguageProvider>(
+                                  context,
+                                ).locale.languageCode,
+                                'date_label',
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    DateFormat(
+                                      'dd MMM yyyy',
+                                    ).format(selectedDate),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const Icon(Icons.calendar_today, size: 18),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: selectedTime,
+                              builder: (context, child) {
+                                return Theme(
+                                  data: Theme.of(context).copyWith(
+                                    colorScheme: Theme.of(context).colorScheme
+                                        .copyWith(
+                                          primary: const Color(0xFF4F46E5),
+                                        ),
+                                  ),
+                                  child: child!,
+                                );
+                              },
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                selectedTime = picked;
+                              });
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: AppTranslations.get(
+                                Provider.of<LanguageProvider>(
+                                  context,
+                                ).locale.languageCode,
+                                'time_label',
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    selectedTime.format(context),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const Icon(Icons.access_time, size: 18),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Notes Field (Third)
+                  TextFormField(
+                    controller: notesController,
+                    decoration: InputDecoration(
+                      labelText: AppTranslations.get(
+                        Provider.of<LanguageProvider>(
+                          context,
+                        ).locale.languageCode,
+                        'notes_label',
+                      ),
+                      hintText: '',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Interest Section (Moved to Bottom)
+                  if (existingTransaction?.isInterestEntry != true)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF1F2937)
+                            : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: Checkbox(
+                                  value: isInterestEnabled,
+                                  activeColor: const Color(0xFF4F46E5),
+                                  onChanged: (val) {
+                                    setDialogState(() {
+                                      isInterestEnabled = val ?? false;
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "Include Interest", // TODO: Translate
+                                style: TextStyle(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white
+                                      : const Color(0xFF111827),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (isInterestEnabled) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: TextFormField(
+                                    controller: interestRateController,
+                                    autovalidateMode:
+                                        AutovalidateMode.onUserInteraction,
+                                    decoration: InputDecoration(
+                                      labelText: "Rate (%)", // TODO: Translate
+                                      suffixText: '%',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      filled: true,
+                                      fillColor: Theme.of(context).cardColor,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 12,
+                                          ),
+                                    ),
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    validator: (value) {
+                                      if (!isInterestEnabled) return null;
+                                      if (value == null || value.isEmpty)
+                                        return "Required";
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 3,
+                                  child: DropdownButtonFormField<String>(
+                                    isExpanded: true,
+                                    value: interestPeriod,
+                                    decoration: InputDecoration(
+                                      labelText: "Period", // TODO: Translate
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      filled: true,
+                                      fillColor: Theme.of(context).cardColor,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 12,
+                                          ),
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'MONTHLY',
+                                        child: Text('Monthly'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'YEARLY',
+                                        child: Text('Yearly'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'DAILY',
+                                        child: Text('Daily'),
+                                      ),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setDialogState(
+                                          () => interestPeriod = val,
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
             actions: [
@@ -1062,6 +1628,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   final amount = double.parse(amountController.text.trim());
                   final notes = notesController.text.trim();
 
+                  // Interest parsing
+                  double? interestRate;
+                  if (isInterestEnabled) {
+                    interestRate = double.tryParse(
+                      interestRateController.text.trim(),
+                    );
+                  }
+
                   final finalDateTime = DateTime(
                     selectedDate.year,
                     selectedDate.month,
@@ -1074,11 +1648,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
                   if (existingTransaction != null) {
                     // Reverse old impact
-                    // Reverse old impact: If Old was GAVE (+), subtract. If GOT (-), add.
                     balanceAdjustment -= (existingTransaction.type == 'GAVE'
                         ? existingTransaction.amount
                         : -existingTransaction.amount);
-                    // Apply new impact: If New is GAVE (+), add. If GOT (-), subtract.
+                    // Apply new impact
                     balanceAdjustment += (type == 'GAVE' ? amount : -amount);
 
                     await database.updateTransaction(
@@ -1086,6 +1659,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         amount: amount,
                         date: finalDateTime,
                         notes: drift.Value(notes),
+                        interestRate: drift.Value(interestRate),
+                        interestPeriod: drift.Value(
+                          isInterestEnabled ? interestPeriod : null,
+                        ),
+                        // Reset calculation date if details changed
+                        lastInterestCalculatedDate: const drift.Value(null),
                       ),
                     );
                   } else {
@@ -1098,6 +1677,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         type: drift.Value(type),
                         date: drift.Value(finalDateTime),
                         notes: drift.Value(notes),
+                        interestRate: drift.Value(interestRate),
+                        interestPeriod: drift.Value(
+                          isInterestEnabled ? interestPeriod : null,
+                        ),
                       ),
                     );
                     balanceAdjustment = type == 'GAVE' ? amount : -amount;

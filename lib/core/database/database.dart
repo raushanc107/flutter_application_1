@@ -22,6 +22,15 @@ class Transactions extends Table {
   TextColumn get type => text()(); // 'GAVE' or 'GOT'
   DateTimeColumn get date => dateTime().withDefault(currentDateAndTime)();
   TextColumn get notes => text().nullable()();
+  RealColumn get interestRate => real().nullable()();
+  TextColumn get interestPeriod =>
+      text().nullable()(); // 'DAILY', 'MONTHLY', 'YEARLY'
+  TextColumn get interestType => text().nullable()(); // 'SIMPLE', 'COMPOUND'
+  DateTimeColumn get lastInterestCalculatedDate => dateTime().nullable()();
+  TextColumn get parentTransactionId =>
+      text().nullable().references(Transactions, #id)();
+  BoolColumn get isInterestEntry =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -32,7 +41,29 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onCreate: (Migrator m) async {
+        await m.createAll();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 2) {
+          await m.addColumn(transactions, transactions.interestRate);
+          await m.addColumn(transactions, transactions.interestPeriod);
+          await m.addColumn(transactions, transactions.interestType);
+          await m.addColumn(
+            transactions,
+            transactions.lastInterestCalculatedDate,
+          );
+          await m.addColumn(transactions, transactions.parentTransactionId);
+          await m.addColumn(transactions, transactions.isInterestEntry);
+        }
+      },
+    );
+  }
 
   // DAO-like methods
   Future<List<Customer>> getAllCustomers() => select(customers).get();
@@ -66,9 +97,10 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<Transaction>> watchTransactionsForCustomer(String customerId) {
-    return (select(
-      transactions,
-    )..where((t) => t.customerId.equals(customerId))).watch();
+    return (select(transactions)
+          ..where((t) => t.customerId.equals(customerId))
+          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+        .watch();
   }
 
   Future<int> insertTransaction(TransactionsCompanion transaction) =>
@@ -77,8 +109,35 @@ class AppDatabase extends _$AppDatabase {
   Future updateTransaction(Transaction transaction) =>
       update(transactions).replace(transaction);
 
-  Future deleteTransaction(Transaction transaction) =>
+  Future<void> deleteTransaction(Transaction transaction) =>
       delete(transactions).delete(transaction);
+
+  Future<double> deleteTransactionWithChildren(Transaction transaction) async {
+    return this.transaction(() async {
+      // 1. Find all interest entries for this parent
+      final children = await (select(
+        transactions,
+      )..where((t) => t.parentTransactionId.equals(transaction.id))).get();
+
+      double totalImpact = 0;
+
+      // 2. Delete children and track their impact
+      for (final child in children) {
+        // Impact follows the parent's type (GAVE adds to balance, GOT subtracts)
+        // So reverse impact: GAVE -> -amount, GOT -> +amount
+        totalImpact += (child.type == 'GAVE' ? -child.amount : child.amount);
+        await delete(transactions).delete(child);
+      }
+
+      // 3. Delete parent and track its impact
+      totalImpact += (transaction.type == 'GAVE'
+          ? -transaction.amount
+          : transaction.amount);
+      await delete(transactions).delete(transaction);
+
+      return totalImpact;
+    });
+  }
 
   Future<Transaction?> getTransactionById(String id) {
     return (select(

@@ -12,14 +12,26 @@ import 'core/database/unsupported.dart'
     as db_connection;
 
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'core/services/interest_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final database = AppDatabase(db_connection.connect());
+
+  // Check for interest on startup
+  try {
+    final interestService = InterestService(database);
+    await interestService.checkAndGenerateInterest();
+  } catch (e) {
+    debugPrint('Error generating interest: $e');
+  }
+
   runApp(
     MultiProvider(
       providers: [
         Provider<AppDatabase>(
-          create: (context) => AppDatabase(db_connection.connect()),
+          create: (context) => database,
           dispose: (context, db) => db.close(),
         ),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
