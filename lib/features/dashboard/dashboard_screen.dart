@@ -22,6 +22,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
+  String _filterType = 'All'; // 'All', 'GET', 'GIVE'
 
   @override
   void initState() {
@@ -311,6 +312,90 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ? const Color(0xFF94A3B8)
                 : const Color(0xFF9CA3AF),
           ),
+          suffixIcon: PopupMenuButton<String>(
+            icon: Icon(
+              Icons.filter_list,
+              color: _filterType == 'All'
+                  ? (Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF9CA3AF))
+                  : const Color(0xFF4F46E5),
+            ),
+            onSelected: (String value) {
+              setState(() {
+                _filterType = value;
+              });
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(
+                value: 'All',
+                child: Row(
+                  children: [
+                    if (_filterType == 'All')
+                      const Icon(
+                        Icons.check,
+                        size: 18,
+                        color: Color(0xFF4F46E5),
+                      )
+                    else
+                      const SizedBox(width: 18),
+                    const SizedBox(width: 8),
+                    const Text('All'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'GET',
+                child: Row(
+                  children: [
+                    if (_filterType == 'GET')
+                      const Icon(
+                        Icons.check,
+                        size: 18,
+                        color: Color(0xFF4F46E5),
+                      )
+                    else
+                      const SizedBox(width: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppTranslations.get(
+                        Provider.of<LanguageProvider>(
+                          context,
+                          listen: false,
+                        ).locale.languageCode,
+                        'you_will_get',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'GIVE',
+                child: Row(
+                  children: [
+                    if (_filterType == 'GIVE')
+                      const Icon(
+                        Icons.check,
+                        size: 18,
+                        color: Color(0xFF4F46E5),
+                      )
+                    else
+                      const SizedBox(width: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppTranslations.get(
+                        Provider.of<LanguageProvider>(
+                          context,
+                          listen: false,
+                        ).locale.languageCode,
+                        'you_will_give',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           filled: true,
           fillColor: Theme.of(context).brightness == Brightness.dark
               ? const Color(0xFF1E293B)
@@ -350,6 +435,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         var customers = snapshot.data ?? [];
+
+        // Apply type filter
+        if (_filterType == 'GET') {
+          customers = customers.where((c) => c.currentBalance > 0).toList();
+        } else if (_filterType == 'GIVE') {
+          customers = customers.where((c) => c.currentBalance < 0).toList();
+        }
+
+        // Apply search filter
         if (_searchQuery.isNotEmpty) {
           customers = customers
               .where((c) => c.name.toLowerCase().contains(_searchQuery))
@@ -364,10 +458,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Icon(Icons.people_outline, size: 64, color: Colors.grey[300]),
                 const SizedBox(height: 16),
                 Text(
-                  AppTranslations.get(
-                    Provider.of<LanguageProvider>(context).locale.languageCode,
-                    'no_customers',
-                  ),
+                  _searchQuery.isNotEmpty || _filterType != 'All'
+                      ? AppTranslations.get(
+                          Provider.of<LanguageProvider>(
+                            context,
+                          ).locale.languageCode,
+                          'no_results_found',
+                        )
+                      : AppTranslations.get(
+                          Provider.of<LanguageProvider>(
+                            context,
+                          ).locale.languageCode,
+                          'no_customers',
+                        ),
                   style: const TextStyle(color: Color(0xFF6B7280)),
                 ),
               ],
@@ -376,18 +479,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Changed from crossAxisAlignment: CrossAxisAlignment.start to default center for safety or keep structure
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                '${customers.length} ${AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'customers_label')}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF6B7280),
-                  letterSpacing: 1.0,
-                ),
+              child: Row(
+                children: [
+                  Text(
+                    '${customers.length} ${AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'customers_label')}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF6B7280),
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(

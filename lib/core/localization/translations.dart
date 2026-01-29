@@ -10,6 +10,7 @@ class AppTranslations {
       'add_customer': 'Add Customer',
       'no_customers': 'No customers found',
       'customers_label': 'CUSTOMERS',
+      'no_results_found': 'No matching customers found',
 
       // Settings
       'settings_title': 'Settings',
@@ -127,6 +128,7 @@ class AppTranslations {
       'add_customer': 'ग्राहक जोड़ें',
       'no_customers': 'कोई ग्राहक नहीं मिला',
       'customers_label': 'ग्राहक',
+      'no_results_found': 'कोई मेल खाता ग्राहक नहीं मिला',
 
       // Settings
       'settings_title': 'सेटिंग्स',
@@ -243,6 +245,7 @@ class AppTranslations {
       'add_customer': 'Customer Jodein',
       'no_customers': 'Koi customer nahi mila',
       'customers_label': 'CUSTOMERS',
+      'no_results_found': 'Koi matching customer nahi mila',
 
       // Settings
       'settings_title': 'Settings',
