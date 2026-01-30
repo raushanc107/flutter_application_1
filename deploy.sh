@@ -3,6 +3,10 @@
 # Exit on error
 set -e
 
+echo "🧹 Cleaning project..."
+flutter clean
+flutter pub get
+
 echo "🚀 Building Flutter Web..."
 flutter build web --base-href /khatabook/ --release
 

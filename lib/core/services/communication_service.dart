@@ -1,6 +1,5 @@
 import 'package:url_launcher/url_launcher.dart';
-
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class CommunicationService {
   /// Sends a WhatsApp message to the given [phoneNumber] with the [message].
@@ -53,7 +52,7 @@ class CommunicationService {
 
     String cleanPhone = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
 
-    if (Platform.isAndroid) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       // Android manual construction with ? separator and %20 for spaces
       final String uriString =
           'sms:$cleanPhone?body=${Uri.encodeComponent(message)}';
@@ -62,7 +61,7 @@ class CommunicationService {
       if (await canLaunchUrl(finalUri)) {
         return await launchUrl(finalUri);
       }
-    } else if (Platform.isIOS) {
+    } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
       // iOS: Using '&' separator as a workaround for missing recipient issue on recent iOS versions.
       final String uriString =
           'sms:$cleanPhone&body=${Uri.encodeComponent(message)}';

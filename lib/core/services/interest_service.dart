@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../database/database.dart';
 import 'package:drift/drift.dart';
 import 'package:intl/intl.dart';
@@ -10,73 +11,86 @@ class InterestService {
   /// Checks all transactions and generates interest entries if due.
   Future<bool> checkAndGenerateInterest() async {
     bool totalChanges = false;
-    final allTransactions = await _db.getAllTransactions();
-    final interestTransactions = allTransactions
-        .where((t) => t.interestRate != null && t.interestRate! > 0)
-        .toList();
+    try {
+      final allTransactions = await _db.getAllTransactions();
+      final interestTransactions = allTransactions
+          .where((t) => t.interestRate != null && (t.interestRate ?? 0.0) > 0)
+          .toList();
 
-    for (final parentTx in interestTransactions) {
-      final changed = await _processTransactionInterest(parentTx);
-      if (changed) totalChanges = true;
-    }
+      debugPrint(
+        'InterestService: Found ${interestTransactions.length} transactions with interest settings.',
+      );
 
-    if (totalChanges) {
-      await _db.recalculateAllBalances();
+      for (final parentTx in interestTransactions) {
+        final changed = await _processTransactionInterest(parentTx);
+        if (changed) totalChanges = true;
+      }
+
+      if (totalChanges) {
+        await _db.recalculateAllBalances();
+      }
+    } catch (e, stack) {
+      debugPrint(
+        'InterestService: Critical error in checkAndGenerateInterest: $e',
+      );
+      debugPrint(stack.toString());
+      rethrow;
     }
 
     return totalChanges;
   }
 
   Future<bool> _processTransactionInterest(Transaction parentTx) async {
-    if (parentTx.interestPeriod == null) return false;
+    final period = parentTx.interestPeriod;
+    final rate = parentTx.interestRate;
+
+    if (period == null || rate == null) {
+      debugPrint(
+        'InterestService: Skipping transaction ${parentTx.id} - missing period or rate.',
+      );
+      return false;
+    }
 
     final now = DateTime.now();
-    // Start date for calculation:
-    // If we have calculated before, start from there.
-    // If not, start from the transaction date.
     DateTime lastCalculated =
         parentTx.lastInterestCalculatedDate ?? parentTx.date;
 
-    // Safety check: Don't calculate for future dates
     if (lastCalculated.isAfter(now)) return false;
 
-    DateTime nextDueDate = _getNextDueDate(
-      lastCalculated,
-      parentTx.interestPeriod!,
-    );
+    // Use a safe helper for next due date
+    DateTime? nextDueDate = _getNextDueDate(lastCalculated, period);
+    if (nextDueDate == null) return false;
 
     bool changesMade = false;
     DateTime newLastCalculated = lastCalculated;
-    DateTime currentStart =
-        lastCalculated; // Track the start of the current period
+    DateTime currentStart = lastCalculated;
 
-    // Connect to database batch or run singly? Singly is safer for logic for now.
+    debugPrint(
+      'InterestService: Processing transaction ${parentTx.id} (Amount: ${parentTx.amount}, Rate: $rate%, Period: $period)',
+    );
 
     // CATCH-UP LOGIC:
-    // Loop while the next due date is in the past (e.g., due yesterday or months ago).
-    while (nextDueDate.isBefore(now) || nextDueDate.isAtSameMomentAs(now)) {
-      // Create Interest Entry
-      final interestAmount = _calculateInterestAmount(parentTx);
+    while (nextDueDate != null &&
+        (nextDueDate.isBefore(now) || nextDueDate.isAtSameMomentAs(now))) {
+      final interestAmount = (parentTx.amount * rate) / 100.0;
+      final periodName = _getPeriodName(period);
 
-      // Notes for the interest entry
-      final periodName = _getPeriodName(parentTx.interestPeriod!);
-
-      // Dynamic period detail based on the period start date
-      // We use currentStart to represent the month/year the interest was accruing.
       String periodDetail;
-      if (parentTx.interestPeriod == 'MONTHLY') {
-        periodDetail = DateFormat('MMMM yyyy').format(currentStart);
-      } else if (parentTx.interestPeriod == 'YEARLY') {
-        periodDetail = DateFormat('yyyy').format(currentStart);
-      } else {
-        // DAILY
-        periodDetail = DateFormat('dd MMM yyyy').format(currentStart);
+      try {
+        if (period == 'MONTHLY') {
+          periodDetail = DateFormat('MMMM yyyy').format(currentStart);
+        } else if (period == 'YEARLY') {
+          periodDetail = DateFormat('yyyy').format(currentStart);
+        } else {
+          periodDetail = DateFormat('dd MMM yyyy').format(currentStart);
+        }
+      } catch (e) {
+        debugPrint('InterestService: Date formatting error: $e');
+        periodDetail = 'Unknown Period';
       }
 
-      final note =
-          "Interest (${parentTx.interestRate}% $periodName) for $periodDetail";
+      final note = "Interest ($rate% $periodName) for $periodDetail";
 
-      // Create the transaction
       final newTx = TransactionsCompanion(
         id: Value(_generateId()),
         customerId: Value(parentTx.customerId),
@@ -90,19 +104,26 @@ class InterestService {
       );
 
       await _db.insertTransaction(newTx);
+      debugPrint(
+        'InterestService: Generated interest entry for ${nextDueDate.toIso8601String()}',
+      );
 
-      // Update loop variables
-      currentStart = nextDueDate; // Advance the period start
+      currentStart = nextDueDate;
       newLastCalculated = nextDueDate;
       changesMade = true;
-      nextDueDate = _getNextDueDate(
-        newLastCalculated,
-        parentTx.interestPeriod!,
-      );
+
+      nextDueDate = _getNextDueDate(newLastCalculated, period);
+
+      // Safety break to prevent infinite loops if date calculation fails or stays same
+      if (nextDueDate != null && !nextDueDate.isAfter(newLastCalculated)) {
+        debugPrint(
+          'InterestService: WARNING: nextDueDate is not advancing! Breaking loop.',
+        );
+        break;
+      }
     }
 
     if (changesMade) {
-      // Update parent transaction with new last calculated date
       final updatedParent = parentTx.copyWith(
         lastInterestCalculatedDate: Value(newLastCalculated),
       );
@@ -112,27 +133,21 @@ class InterestService {
     return changesMade;
   }
 
-  double _calculateInterestAmount(Transaction tx) {
-    // Simple Interest for one period
-    // Formula: Principal * Rate / 100
-    // Rate is per period (e.g. 1% per Month).
-    // So for one month, it is Amount * 1 / 100.
-    final rate = tx.interestRate ?? 0.0;
-    return (tx.amount * rate) / 100.0;
-  }
-
-  DateTime _getNextDueDate(DateTime current, String period) {
-    switch (period) {
-      case 'DAILY':
-        return current.add(const Duration(days: 1));
-      case 'MONTHLY':
-        // Handle month overflow? e.g. Jan 31 -> Feb 28
-        // User typically expects "Same day next month"
-        return DateTime(current.year, current.month + 1, current.day);
-      case 'YEARLY':
-        return DateTime(current.year + 1, current.month, current.day);
-      default:
-        return current.add(const Duration(days: 30));
+  DateTime? _getNextDueDate(DateTime current, String period) {
+    try {
+      switch (period) {
+        case 'DAILY':
+          return current.add(const Duration(days: 1));
+        case 'MONTHLY':
+          return DateTime(current.year, current.month + 1, current.day);
+        case 'YEARLY':
+          return DateTime(current.year + 1, current.month, current.day);
+        default:
+          return current.add(const Duration(days: 30));
+      }
+    } catch (e) {
+      debugPrint('InterestService: Error calculating next due date: $e');
+      return null;
     }
   }
 

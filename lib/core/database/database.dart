@@ -30,18 +30,39 @@ class Transactions extends Table {
   TextColumn get parentTransactionId =>
       text().nullable().references(Transactions, #id)();
   BoolColumn get isInterestEntry =>
-      boolean().withDefault(const Constant(false))();
+      boolean().nullable().withDefault(const Constant(false))();
+  BoolColumn get isRecurringParent =>
+      boolean().withDefault(const Constant(false))(); // New column
 
   @override
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Customers, Transactions])
+class RecurringTransactions extends Table {
+  TextColumn get id => text()();
+  TextColumn get customerId => text().references(Customers, #id)();
+  RealColumn get amount => real()();
+  TextColumn get type => text()(); // 'GAVE' or 'GOT'
+  TextColumn get frequency => text()(); // 'DAILY', 'MONTHLY', 'YEARLY'
+  DateTimeColumn get startDate => dateTime()();
+  TextColumn get note => text()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get lastGeneratedDate => dateTime().nullable()();
+  TextColumn get linkedTransactionId => text().nullable().references(
+    Transactions,
+    #id,
+  )(); // New column: Links config to visual parent
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Customers, Transactions, RecurringTransactions])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
@@ -61,6 +82,16 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(transactions, transactions.parentTransactionId);
           await m.addColumn(transactions, transactions.isInterestEntry);
         }
+        if (from < 3) {
+          await m.createTable(recurringTransactions);
+        }
+        if (from < 4) {
+          await m.addColumn(transactions, transactions.isRecurringParent);
+          await m.addColumn(
+            recurringTransactions,
+            recurringTransactions.linkedTransactionId,
+          );
+        }
       },
     );
   }
@@ -76,6 +107,9 @@ class AppDatabase extends _$AppDatabase {
     await (delete(
       transactions,
     )..where((t) => t.customerId.equals(customer.id))).go();
+    await (delete(
+      recurringTransactions,
+    )..where((t) => t.customerId.equals(customer.id))).go();
     await delete(customers).delete(customer);
   }
 
@@ -85,6 +119,7 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteAllData() async {
     await delete(transactions).go();
+    await delete(recurringTransactions).go();
     await delete(customers).go();
   }
 
@@ -129,7 +164,17 @@ class AppDatabase extends _$AppDatabase {
         await delete(transactions).delete(child);
       }
 
-      // 3. Delete parent and track its impact
+      // 3. Check if this is a recurring parent and delete the config if so
+      final recurringConfig =
+          await (select(recurringTransactions)
+                ..where((t) => t.linkedTransactionId.equals(transaction.id)))
+              .getSingleOrNull();
+
+      if (recurringConfig != null) {
+        await delete(recurringTransactions).delete(recurringConfig);
+      }
+
+      // 4. Delete parent and track its impact
       totalImpact += (transaction.type == 'GAVE'
           ? -transaction.amount
           : transaction.amount);
@@ -325,4 +370,21 @@ class AppDatabase extends _$AppDatabase {
         )
         .toList();
   }
+
+  // Recurring Transaction DAOs
+  Future<List<RecurringTransaction>> getAllActiveRecurringTransactions() {
+    return (select(
+      recurringTransactions,
+    )..where((t) => t.isActive.equals(true))).get();
+  }
+
+  Future<int> insertRecurringTransaction(
+    RecurringTransactionsCompanion entry,
+  ) => into(recurringTransactions).insert(entry);
+
+  Future updateRecurringTransaction(RecurringTransaction entry) =>
+      update(recurringTransactions).replace(entry);
+
+  Future<void> deleteRecurringTransaction(RecurringTransaction entry) =>
+      delete(recurringTransactions).delete(entry);
 }

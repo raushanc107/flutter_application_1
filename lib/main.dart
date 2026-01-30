@@ -13,6 +13,7 @@ import 'core/database/unsupported.dart'
 
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/services/interest_service.dart';
+import 'core/services/recurring_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,13 @@ void main() async {
     await interestService.checkAndGenerateInterest();
   } catch (e) {
     debugPrint('Error generating interest: $e');
+  }
+
+  // Check for recurring transactions
+  try {
+    await RecurringService.checkAndGenerateDueTransactions(database);
+  } catch (e) {
+    debugPrint('Error generating recurring transactions: $e');
   }
 
   runApp(

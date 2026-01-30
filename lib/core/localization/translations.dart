@@ -117,6 +117,14 @@ class AppTranslations {
       'no_phone_number': 'No phone number',
       'amount_invalid': 'Enter a valid amount',
       'continue': 'CONTINUE',
+
+      // Recurring
+      'recurring_payment': 'Recurring Payment',
+      'frequency_label': 'Frequency',
+      'freq_daily': 'Daily',
+      'freq_monthly': 'Monthly',
+      'freq_yearly': 'Yearly',
+      'start_date_label': 'Start Date',
     },
     'hi': {
       // Dashboard
@@ -234,6 +242,14 @@ class AppTranslations {
       'no_phone_number': 'कोई फ़ोन नंबर नहीं',
       'amount_invalid': 'मान्य राशि दर्ज करें',
       'continue': 'जारी रखें',
+
+      // Recurring
+      'recurring_payment': 'आवर्ती भुगतान',
+      'frequency_label': 'आवृत्ति',
+      'freq_daily': 'दैनिक',
+      'freq_monthly': 'मासिक',
+      'freq_yearly': 'वार्षिक',
+      'start_date_label': 'आरंभ तिथि',
     },
     'hinglish': {
       // Dashboard
@@ -322,6 +338,7 @@ class AppTranslations {
       'cancel': 'CANCEL',
       'save': 'SAVE',
       'add': 'ADD',
+      'delete': 'DELETE',
 
       // Dialogs
       'reset_confirm_title': 'Factory Reset',
@@ -351,6 +368,14 @@ class AppTranslations {
       'no_phone_number': 'No phone number',
       'amount_invalid': 'Sahi amount daalein',
       'continue': 'CONTINUE',
+
+      // Recurring
+      'recurring_payment': 'Recurring Payment',
+      'frequency_label': 'Frequency',
+      'freq_daily': 'Rozana',
+      'freq_monthly': 'Mahine ka',
+      'freq_yearly': 'Saal ka',
+      'start_date_label': 'Shuruwaat Date',
     },
   };
 

@@ -10,6 +10,7 @@ import '../../core/providers/language_provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../core/localization/translations.dart';
 import '../../core/services/communication_service.dart';
+import '../../core/services/recurring_service.dart';
 import '../customers/add_customer_dialog.dart';
 
 class LedgerScreen extends StatefulWidget {
@@ -297,6 +298,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
     return StreamBuilder<List<Transaction>>(
       stream: database.watchTransactionsForCustomer(_currentCustomer.id),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SelectableText(
+                'Error loading transactions: ${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+          );
+        }
+
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -319,7 +333,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
         final Map<String, List<Transaction>> interestMap = {};
 
         for (final tx in allTransactions) {
-          if (tx.isInterestEntry && tx.parentTransactionId != null) {
+          // Group if it has a parent (Interest OR Recurring Child)
+          if (tx.parentTransactionId != null) {
             interestMap.putIfAbsent(tx.parentTransactionId!, () => []).add(tx);
           } else {
             primaryTransactions.add(tx);
@@ -537,7 +552,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                DateFormat('hh:mm a').format(tx.date),
+                                "${DateFormat('hh:mm a').format(tx.date)}${(tx.isRecurringParent || tx.amount == 0 || (tx.interestRate != null && tx.interestRate! > 0)) ? " • ${DateFormat('dd MMM').format(tx.date)}" : ""}",
                                 style: TextStyle(
                                   fontSize: 11,
                                   color:
@@ -547,30 +562,30 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                       : const Color(0xFF6B7280),
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 1,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFF8B5CF6,
-                                    ).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    "${formatter.format(tx.amount)} + ${formatter.format(totalInterest)}",
-                                    style: const TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF8B5CF6),
+                              if (!(tx.isRecurringParent || tx.amount == 0))
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 1,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFF8B5CF6,
+                                      ).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      "${formatter.format(tx.amount)} + ${formatter.format(totalInterest)}",
+                                      style: const TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF8B5CF6),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                         ],
@@ -597,10 +612,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     Color badgeTextColor;
     Color badgeMonthColor;
 
-    if (tx.isInterestEntry) {
-      badgeBgColor = const Color(0xFF8B5CF6).withValues(alpha: 0.2);
-      badgeTextColor = const Color(0xFF8B5CF6);
-      badgeMonthColor = const Color(0xFF8B5CF6);
+    if ((tx.isInterestEntry ?? false) ||
+        (tx.interestRate != null && tx.interestRate! > 0) ||
+        (tx.isRecurringParent || tx.amount == 0)) {
+      badgeBgColor = Colors.white;
+      badgeTextColor = const Color(0xFF4F46E5);
+      badgeMonthColor = const Color(0xFF4F46E5);
     } else if (Theme.of(context).brightness == Brightness.dark) {
       badgeBgColor = const Color(0xFF374151);
       badgeTextColor = Colors.white;
@@ -621,22 +638,29 @@ class _LedgerScreenState extends State<LedgerScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            DateFormat('dd').format(tx.date),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: badgeTextColor,
+          if ((tx.isInterestEntry ?? false) ||
+              (tx.interestRate != null && tx.interestRate! > 0))
+            const Icon(Icons.percent, size: 24, color: Color(0xFF4F46E5))
+          else if (tx.isRecurringParent || tx.amount == 0)
+            const Icon(Icons.repeat, size: 24, color: Color(0xFF4F46E5))
+          else ...[
+            Text(
+              DateFormat('dd').format(tx.date),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: badgeTextColor,
+              ),
             ),
-          ),
-          Text(
-            DateFormat('MMM').format(tx.date).toUpperCase(),
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: badgeMonthColor,
+            Text(
+              DateFormat('MMM').format(tx.date).toUpperCase(),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: badgeMonthColor,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -729,13 +753,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
     Color badgeTextColor;
     Color badgeMonthColor;
 
-    if (tx.isInterestEntry) {
-      // Distinct look for Interest Entries
-      badgeBgColor = const Color(
-        0xFF8B5CF6,
-      ).withValues(alpha: 0.2); // Purple tint
-      badgeTextColor = const Color(0xFF8B5CF6);
-      badgeMonthColor = const Color(0xFF8B5CF6);
+    if ((tx.isInterestEntry ?? false) ||
+        (tx.interestRate != null && tx.interestRate! > 0) ||
+        (tx.isRecurringParent || tx.amount == 0)) {
+      badgeBgColor = Colors.white;
+      badgeTextColor = const Color(0xFF4F46E5);
+      badgeMonthColor = const Color(0xFF4F46E5);
     } else if (Theme.of(context).brightness == Brightness.dark) {
       badgeBgColor = const Color(0xFF374151);
       badgeTextColor = Colors.white;
@@ -783,11 +806,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (tx.isInterestEntry)
+                          if ((tx.isInterestEntry ?? false) ||
+                              (tx.interestRate != null && tx.interestRate! > 0))
                             const Icon(
                               Icons.percent,
                               size: 24,
-                              color: Color(0xFF8B5CF6),
+                              color: Color(0xFF4F46E5),
+                            )
+                          else if (tx.isRecurringParent || tx.amount == 0)
+                            const Icon(
+                              Icons.repeat,
+                              size: 24,
+                              color: Color(0xFF4F46E5), // Indigo
                             )
                           else ...[
                             Text(
@@ -853,7 +883,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                DateFormat('hh:mm a').format(tx.date),
+                                "${DateFormat('hh:mm a').format(tx.date)}${(tx.isRecurringParent || tx.amount == 0 || (tx.interestRate != null && tx.interestRate! > 0)) ? " • ${DateFormat('dd MMM').format(tx.date)}" : ""}",
                                 style: TextStyle(
                                   fontSize: 12,
                                   color:
@@ -894,12 +924,42 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   ),
                                 ),
                               ],
+
+                              // Recurring Badge
+                              if (tx.isRecurringParent) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFEC4899,
+                                    ).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: const Color(
+                                        0xFFEC4899,
+                                      ).withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'REPEAT',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFFEC4899),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
 
                           // Reference Badge for Interest Entry
-                          if (tx.isInterestEntry &&
-                              tx.parentTransactionId != null) ...[
+                          if (tx.isInterestEntry ??
+                              false && tx.parentTransactionId != null) ...[
                             const SizedBox(height: 4),
                             FutureBuilder<Transaction?>(
                               future: database.getTransactionById(
@@ -942,7 +1002,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    formatter.format(tx.amount),
+                    (tx.isRecurringParent || tx.amount == 0)
+                        ? "Active"
+                        : formatter.format(tx.amount),
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
@@ -1245,6 +1307,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String interestPeriod =
         existingTransaction?.interestPeriod ?? 'MONTHLY'; // Default keys
 
+    // Recurring State
+    bool isRecurring = false;
+    String recurringFrequency = 'MONTHLY';
+
+    // If editing, disable recurring option or just don't show it for simplicity
+    // Supporting converting a normal tx to recurring is complex logic (deleting old one?)
+    // So we only show recurring checkbox when creating NEW transaction.
+    bool canMakeRecurring = existingTransaction == null;
+
     DateTime selectedDate = existingTransaction?.date ?? DateTime.now();
     TimeOfDay selectedTime = TimeOfDay.fromDateTime(selectedDate);
 
@@ -1474,7 +1545,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   const SizedBox(height: 24),
 
                   // Interest Section (Moved to Bottom)
-                  if (existingTransaction?.isInterestEntry != true)
+                  if ((existingTransaction?.isInterestEntry ?? false) != true)
                     Container(
                       decoration: BoxDecoration(
                         color: Theme.of(context).brightness == Brightness.dark
@@ -1497,6 +1568,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   onChanged: (val) {
                                     setDialogState(() {
                                       isInterestEnabled = val ?? false;
+                                      if (isInterestEnabled) {
+                                        isRecurring = false;
+                                      }
                                     });
                                   },
                                 ),
@@ -1599,6 +1673,128 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         ],
                       ),
                     ),
+                  // Recurring Section
+                  if (canMakeRecurring) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF1F2937)
+                            : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: Checkbox(
+                                  value: isRecurring,
+                                  activeColor: const Color(0xFF4F46E5),
+                                  onChanged: (val) {
+                                    setDialogState(() {
+                                      isRecurring = val ?? false;
+                                      // Disable interest if recurring is on (simplicity)
+                                      if (isRecurring) {
+                                        isInterestEnabled = false;
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                AppTranslations.get(
+                                  Provider.of<LanguageProvider>(
+                                    context,
+                                  ).locale.languageCode,
+                                  'recurring_payment',
+                                ),
+                                style: TextStyle(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white
+                                      : const Color(0xFF111827),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (isRecurring) ...[
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              value: recurringFrequency,
+                              decoration: InputDecoration(
+                                labelText: AppTranslations.get(
+                                  Provider.of<LanguageProvider>(
+                                    context,
+                                  ).locale.languageCode,
+                                  'frequency_label',
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: Theme.of(context).cardColor,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                              ),
+                              items: [
+                                DropdownMenuItem(
+                                  value: 'DAILY',
+                                  child: Text(
+                                    AppTranslations.get(
+                                      Provider.of<LanguageProvider>(
+                                        context,
+                                      ).locale.languageCode,
+                                      'freq_daily',
+                                    ),
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'MONTHLY',
+                                  child: Text(
+                                    AppTranslations.get(
+                                      Provider.of<LanguageProvider>(
+                                        context,
+                                      ).locale.languageCode,
+                                      'freq_monthly',
+                                    ),
+                                  ),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'YEARLY',
+                                  child: Text(
+                                    AppTranslations.get(
+                                      Provider.of<LanguageProvider>(
+                                        context,
+                                      ).locale.languageCode,
+                                      'freq_yearly',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setDialogState(
+                                    () => recurringFrequency = val,
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1668,36 +1864,83 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       ),
                     );
                   } else {
-                    final uuid = const Uuid().v4();
-                    await database.insertTransaction(
-                      TransactionsCompanion(
-                        id: drift.Value(uuid),
-                        customerId: drift.Value(_currentCustomer.id),
-                        amount: drift.Value(amount),
-                        type: drift.Value(type),
-                        date: drift.Value(finalDateTime),
-                        notes: drift.Value(notes),
-                        interestRate: drift.Value(interestRate),
-                        interestPeriod: drift.Value(
-                          isInterestEnabled ? interestPeriod : null,
+                    if (isRecurring) {
+                      final parentUuid = const Uuid().v4();
+                      final recurringUuid = const Uuid().v4();
+
+                      // 1. Create Parent "Setup" Transaction (Amount 0)
+                      await database.insertTransaction(
+                        TransactionsCompanion(
+                          id: drift.Value(parentUuid),
+                          customerId: drift.Value(_currentCustomer.id),
+                          amount: const drift.Value(0.0), // Initial setup is 0
+                          type: drift.Value(type),
+                          date: drift.Value(finalDateTime),
+                          notes: drift.Value(notes), // Main note
+                          isRecurringParent: const drift.Value(true),
                         ),
-                      ),
-                    );
-                    balanceAdjustment = type == 'GAVE' ? amount : -amount;
+                      );
+
+                      // 2. Create Recurring Config linked to Parent
+                      await database.insertRecurringTransaction(
+                        RecurringTransactionsCompanion(
+                          id: drift.Value(recurringUuid),
+                          customerId: drift.Value(_currentCustomer.id),
+                          amount: drift.Value(
+                            amount,
+                          ), // Actual recurring amount
+                          type: drift.Value(type),
+                          frequency: drift.Value(recurringFrequency),
+                          startDate: drift.Value(finalDateTime),
+                          note: drift.Value(notes),
+                          isActive: const drift.Value(true),
+                          linkedTransactionId: drift.Value(parentUuid),
+                        ),
+                      );
+
+                      // 3. Generate immediate transactions (will be children of parentUuid)
+                      await RecurringService.checkAndGenerateDueTransactions(
+                        database,
+                      );
+                    } else {
+                      final uuid = const Uuid().v4();
+                      await database.insertTransaction(
+                        TransactionsCompanion(
+                          id: drift.Value(uuid),
+                          customerId: drift.Value(_currentCustomer.id),
+                          amount: drift.Value(amount),
+                          type: drift.Value(type),
+                          date: drift.Value(finalDateTime),
+                          notes: drift.Value(notes),
+                          interestRate: drift.Value(interestRate),
+                          interestPeriod: drift.Value(
+                            isInterestEnabled ? interestPeriod : null,
+                          ),
+                        ),
+                      );
+                      balanceAdjustment = type == 'GAVE' ? amount : -amount;
+                    }
                   }
 
-                  final updatedCustomer = _currentCustomer.copyWith(
-                    currentBalance:
-                        _currentCustomer.currentBalance + balanceAdjustment,
-                    lastUpdated: DateTime.now(),
-                  );
+                  if (isRecurring) {
+                    // Recalculate full balance to be safe as service might have added multiple entries
+                    await _recalculateBalance(database);
+                  } else {
+                    final updatedCustomer = _currentCustomer.copyWith(
+                      currentBalance:
+                          _currentCustomer.currentBalance + balanceAdjustment,
+                      lastUpdated: DateTime.now(),
+                    );
 
-                  await database.updateCustomer(updatedCustomer);
+                    await database.updateCustomer(updatedCustomer);
+                    if (context.mounted) {
+                      setState(() {
+                        _currentCustomer = updatedCustomer;
+                      });
+                    }
+                  }
 
                   if (context.mounted) {
-                    setState(() {
-                      _currentCustomer = updatedCustomer;
-                    });
                     Navigator.pop(context);
                   }
                 },
