@@ -529,6 +529,19 @@ class $TransactionsTable extends Transactions
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _isPaidMeta = const VerificationMeta('isPaid');
+  @override
+  late final GeneratedColumn<bool> isPaid = GeneratedColumn<bool>(
+    'is_paid',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_paid" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -544,6 +557,7 @@ class $TransactionsTable extends Transactions
     parentTransactionId,
     isInterestEntry,
     isRecurringParent,
+    isPaid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -661,6 +675,12 @@ class $TransactionsTable extends Transactions
         ),
       );
     }
+    if (data.containsKey('is_paid')) {
+      context.handle(
+        _isPaidMeta,
+        isPaid.isAcceptableOrUnknown(data['is_paid']!, _isPaidMeta),
+      );
+    }
     return context;
   }
 
@@ -722,6 +742,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.bool,
         data['${effectivePrefix}is_recurring_parent'],
       )!,
+      isPaid: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_paid'],
+      )!,
     );
   }
 
@@ -745,6 +769,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final String? parentTransactionId;
   final bool? isInterestEntry;
   final bool isRecurringParent;
+  final bool isPaid;
   const Transaction({
     required this.id,
     required this.customerId,
@@ -759,6 +784,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     this.parentTransactionId,
     this.isInterestEntry,
     required this.isRecurringParent,
+    required this.isPaid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -792,6 +818,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       map['is_interest_entry'] = Variable<bool>(isInterestEntry);
     }
     map['is_recurring_parent'] = Variable<bool>(isRecurringParent);
+    map['is_paid'] = Variable<bool>(isPaid);
     return map;
   }
 
@@ -825,6 +852,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ? const Value.absent()
           : Value(isInterestEntry),
       isRecurringParent: Value(isRecurringParent),
+      isPaid: Value(isPaid),
     );
   }
 
@@ -851,6 +879,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       ),
       isInterestEntry: serializer.fromJson<bool?>(json['isInterestEntry']),
       isRecurringParent: serializer.fromJson<bool>(json['isRecurringParent']),
+      isPaid: serializer.fromJson<bool>(json['isPaid']),
     );
   }
   @override
@@ -872,6 +901,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'parentTransactionId': serializer.toJson<String?>(parentTransactionId),
       'isInterestEntry': serializer.toJson<bool?>(isInterestEntry),
       'isRecurringParent': serializer.toJson<bool>(isRecurringParent),
+      'isPaid': serializer.toJson<bool>(isPaid),
     };
   }
 
@@ -889,6 +919,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     Value<String?> parentTransactionId = const Value.absent(),
     Value<bool?> isInterestEntry = const Value.absent(),
     bool? isRecurringParent,
+    bool? isPaid,
   }) => Transaction(
     id: id ?? this.id,
     customerId: customerId ?? this.customerId,
@@ -911,6 +942,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         ? isInterestEntry.value
         : this.isInterestEntry,
     isRecurringParent: isRecurringParent ?? this.isRecurringParent,
+    isPaid: isPaid ?? this.isPaid,
   );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -943,6 +975,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       isRecurringParent: data.isRecurringParent.present
           ? data.isRecurringParent.value
           : this.isRecurringParent,
+      isPaid: data.isPaid.present ? data.isPaid.value : this.isPaid,
     );
   }
 
@@ -961,7 +994,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('lastInterestCalculatedDate: $lastInterestCalculatedDate, ')
           ..write('parentTransactionId: $parentTransactionId, ')
           ..write('isInterestEntry: $isInterestEntry, ')
-          ..write('isRecurringParent: $isRecurringParent')
+          ..write('isRecurringParent: $isRecurringParent, ')
+          ..write('isPaid: $isPaid')
           ..write(')'))
         .toString();
   }
@@ -981,6 +1015,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     parentTransactionId,
     isInterestEntry,
     isRecurringParent,
+    isPaid,
   );
   @override
   bool operator ==(Object other) =>
@@ -998,7 +1033,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.lastInterestCalculatedDate == this.lastInterestCalculatedDate &&
           other.parentTransactionId == this.parentTransactionId &&
           other.isInterestEntry == this.isInterestEntry &&
-          other.isRecurringParent == this.isRecurringParent);
+          other.isRecurringParent == this.isRecurringParent &&
+          other.isPaid == this.isPaid);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -1015,6 +1051,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String?> parentTransactionId;
   final Value<bool?> isInterestEntry;
   final Value<bool> isRecurringParent;
+  final Value<bool> isPaid;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.id = const Value.absent(),
@@ -1030,6 +1067,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.parentTransactionId = const Value.absent(),
     this.isInterestEntry = const Value.absent(),
     this.isRecurringParent = const Value.absent(),
+    this.isPaid = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -1046,6 +1084,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.parentTransactionId = const Value.absent(),
     this.isInterestEntry = const Value.absent(),
     this.isRecurringParent = const Value.absent(),
+    this.isPaid = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        customerId = Value(customerId),
@@ -1065,6 +1104,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? parentTransactionId,
     Expression<bool>? isInterestEntry,
     Expression<bool>? isRecurringParent,
+    Expression<bool>? isPaid,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1083,6 +1123,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
         'parent_transaction_id': parentTransactionId,
       if (isInterestEntry != null) 'is_interest_entry': isInterestEntry,
       if (isRecurringParent != null) 'is_recurring_parent': isRecurringParent,
+      if (isPaid != null) 'is_paid': isPaid,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1101,6 +1142,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<String?>? parentTransactionId,
     Value<bool?>? isInterestEntry,
     Value<bool>? isRecurringParent,
+    Value<bool>? isPaid,
     Value<int>? rowid,
   }) {
     return TransactionsCompanion(
@@ -1118,6 +1160,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       parentTransactionId: parentTransactionId ?? this.parentTransactionId,
       isInterestEntry: isInterestEntry ?? this.isInterestEntry,
       isRecurringParent: isRecurringParent ?? this.isRecurringParent,
+      isPaid: isPaid ?? this.isPaid,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1168,6 +1211,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (isRecurringParent.present) {
       map['is_recurring_parent'] = Variable<bool>(isRecurringParent.value);
     }
+    if (isPaid.present) {
+      map['is_paid'] = Variable<bool>(isPaid.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1190,6 +1236,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('parentTransactionId: $parentTransactionId, ')
           ..write('isInterestEntry: $isInterestEntry, ')
           ..write('isRecurringParent: $isRecurringParent, ')
+          ..write('isPaid: $isPaid, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2289,6 +2336,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       Value<String?> parentTransactionId,
       Value<bool?> isInterestEntry,
       Value<bool> isRecurringParent,
+      Value<bool> isPaid,
       Value<int> rowid,
     });
 typedef $$TransactionsTableUpdateCompanionBuilder =
@@ -2306,6 +2354,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<String?> parentTransactionId,
       Value<bool?> isInterestEntry,
       Value<bool> isRecurringParent,
+      Value<bool> isPaid,
       Value<int> rowid,
     });
 
@@ -2451,6 +2500,11 @@ class $$TransactionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get isPaid => $composableBuilder(
+    column: $table.isPaid,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$CustomersTableFilterComposer get customerId {
     final $$CustomersTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -2589,6 +2643,11 @@ class $$TransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isPaid => $composableBuilder(
+    column: $table.isPaid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$CustomersTableOrderingComposer get customerId {
     final $$CustomersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -2690,6 +2749,9 @@ class $$TransactionsTableAnnotationComposer
     column: $table.isRecurringParent,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get isPaid =>
+      $composableBuilder(column: $table.isPaid, builder: (column) => column);
 
   $$CustomersTableAnnotationComposer get customerId {
     final $$CustomersTableAnnotationComposer composer = $composerBuilder(
@@ -2810,6 +2872,7 @@ class $$TransactionsTableTableManager
                 Value<String?> parentTransactionId = const Value.absent(),
                 Value<bool?> isInterestEntry = const Value.absent(),
                 Value<bool> isRecurringParent = const Value.absent(),
+                Value<bool> isPaid = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionsCompanion(
                 id: id,
@@ -2825,6 +2888,7 @@ class $$TransactionsTableTableManager
                 parentTransactionId: parentTransactionId,
                 isInterestEntry: isInterestEntry,
                 isRecurringParent: isRecurringParent,
+                isPaid: isPaid,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2843,6 +2907,7 @@ class $$TransactionsTableTableManager
                 Value<String?> parentTransactionId = const Value.absent(),
                 Value<bool?> isInterestEntry = const Value.absent(),
                 Value<bool> isRecurringParent = const Value.absent(),
+                Value<bool> isPaid = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionsCompanion.insert(
                 id: id,
@@ -2858,6 +2923,7 @@ class $$TransactionsTableTableManager
                 parentTransactionId: parentTransactionId,
                 isInterestEntry: isInterestEntry,
                 isRecurringParent: isRecurringParent,
+                isPaid: isPaid,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

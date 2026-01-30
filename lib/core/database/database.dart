@@ -33,6 +33,9 @@ class Transactions extends Table {
       boolean().nullable().withDefault(const Constant(false))();
   BoolColumn get isRecurringParent =>
       boolean().withDefault(const Constant(false))(); // New column
+  BoolColumn get isPaid => boolean().withDefault(
+    const Constant(false),
+  )(); // New column for version 5
 
   @override
   Set<Column> get primaryKey => {id};
@@ -62,7 +65,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -91,6 +94,9 @@ class AppDatabase extends _$AppDatabase {
             recurringTransactions,
             recurringTransactions.linkedTransactionId,
           );
+        }
+        if (from < 5) {
+          await m.addColumn(transactions, transactions.isPaid);
         }
       },
     );
@@ -199,10 +205,10 @@ class AppDatabase extends _$AppDatabase {
 
       double balance = 0;
       for (final tx in customerTransactions) {
+        if (tx.isPaid) continue; // Skip paid transactions in balance
+
         // GAVE: You gave money (Credit) -> Positive
         // GOT: You got money (Payment) -> Negative (reduces credit)
-        // Check logic in Dashboard: Balance > 0 is "You will get" (Credit).
-        // Check logic in Ledger: GAVE is +ve effect (if deleting gave, subtract).
         if (tx.type == 'GAVE') {
           balance += tx.amount;
         } else {

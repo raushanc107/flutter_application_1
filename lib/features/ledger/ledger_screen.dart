@@ -413,11 +413,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
       return _buildTransactionItem(context, database, tx);
     }
 
-    final totalInterest = associatedInterests.fold(
-      0.0,
-      (sum, item) => sum + item.amount,
-    );
-    final netAmount = tx.amount + totalInterest;
+    final totalInterest = associatedInterests
+        .where((item) => !item.isPaid)
+        .fold(0.0, (sum, item) => sum + item.amount);
+    final netAmount = (tx.isPaid ? 0.0 : tx.amount) + totalInterest;
 
     final formatter = NumberFormat.currency(
       locale: 'en_IN',
@@ -464,7 +463,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
-                          color: amountColor,
+                          color: tx.isPaid
+                              ? const Color(0xFF9CA3AF)
+                              : amountColor,
+                          decoration: tx.isPaid
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                       Text(
@@ -481,12 +485,48 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                 ).locale.languageCode,
                                 'transaction_got',
                               ),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF6B7280),
+                          color: tx.isPaid
+                              ? const Color(0xFF9CA3AF)
+                              : const Color(0xFF6B7280),
                         ),
                       ),
+                      if (tx.isPaid) ...[
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF10B981,
+                            ).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: const Color(
+                                0xFF10B981,
+                              ).withValues(alpha: 0.5),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Text(
+                            AppTranslations.get(
+                              Provider.of<LanguageProvider>(
+                                context,
+                              ).locale.languageCode,
+                              'paid_label',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF10B981),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(width: 4), // TIGHT GAP
@@ -720,13 +760,46 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 ],
               ),
             ),
-            Text(
-              formatter.format(tx.amount),
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: amountColor.withValues(alpha: 0.8),
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatter.format(tx.amount),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: tx.isPaid
+                        ? const Color(0xFF9CA3AF)
+                        : amountColor.withValues(alpha: 0.8),
+                    decoration: tx.isPaid ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                if (tx.isPaid)
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      AppTranslations.get(
+                        Provider.of<LanguageProvider>(
+                          context,
+                        ).locale.languageCode,
+                        'paid_label',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF10B981),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -999,6 +1072,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 ),
               ),
               Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
@@ -1008,7 +1082,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
-                      color: amountColor,
+                      color: tx.isPaid ? const Color(0xFF9CA3AF) : amountColor,
+                      decoration: tx.isPaid ? TextDecoration.lineThrough : null,
                     ),
                   ),
                   Text(
@@ -1025,12 +1100,44 @@ class _LedgerScreenState extends State<LedgerScreen> {
                             ).locale.languageCode,
                             'transaction_got',
                           ),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF6B7280),
+                      color: tx.isPaid
+                          ? const Color(0xFF9CA3AF)
+                          : const Color(0xFF6B7280),
                     ),
                   ),
+                  if (tx.isPaid) ...[
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Text(
+                        AppTranslations.get(
+                          Provider.of<LanguageProvider>(
+                            context,
+                          ).locale.languageCode,
+                          'paid_label',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -1097,6 +1204,35 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 );
               },
             ),
+            if (!tx.isRecurringParent &&
+                !(tx.interestRate != null && tx.interestRate! > 0))
+              ListTile(
+                leading: Icon(
+                  tx.isPaid ? Icons.undo : Icons.check_circle_outline,
+                  color: const Color(0xFF10B981),
+                ),
+                title: Text(
+                  AppTranslations.get(
+                    Provider.of<LanguageProvider>(context).locale.languageCode,
+                    tx.isPaid ? 'mark_as_unpaid' : 'mark_as_paid',
+                  ),
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : const Color(0xFF111827),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await database.updateTransaction(
+                    tx.copyWith(isPaid: !tx.isPaid),
+                  );
+                  // Also trigger balance recalculation for the customer
+                  _recalculateBalance(database);
+                },
+              ),
             ListTile(
               leading: const Icon(
                 Icons.delete_outline,
@@ -1965,6 +2101,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
     double newBalance = 0;
     for (final tx in transactions) {
+      if (tx.isPaid) continue; // Skip paid transactions in balance
+
       if (tx.type == 'GAVE') {
         newBalance += tx.amount;
       } else {

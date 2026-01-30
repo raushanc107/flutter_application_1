@@ -125,6 +125,9 @@ class AppTranslations {
       'freq_monthly': 'Monthly',
       'freq_yearly': 'Yearly',
       'start_date_label': 'Start Date',
+      'mark_as_paid': 'Mark as Paid',
+      'mark_as_unpaid': 'Mark as Unpaid',
+      'paid_label': 'PAID',
     },
     'hi': {
       // Dashboard
@@ -250,6 +253,9 @@ class AppTranslations {
       'freq_monthly': 'मासिक',
       'freq_yearly': 'वार्षिक',
       'start_date_label': 'आरंभ तिथि',
+      'mark_as_paid': 'भुगतान चिह्नित करें',
+      'mark_as_unpaid': 'भुगतान हटाएँ',
+      'paid_label': 'भुगतान किया',
     },
     'hinglish': {
       // Dashboard
@@ -376,6 +382,9 @@ class AppTranslations {
       'freq_monthly': 'Mahine ka',
       'freq_yearly': 'Saal ka',
       'start_date_label': 'Shuruwaat Date',
+      'mark_as_paid': 'Paid mark karein',
+      'mark_as_unpaid': 'Unpaid mark karein',
+      'paid_label': 'PAID',
     },
   };
 
