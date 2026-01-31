@@ -126,7 +126,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return StreamBuilder<List<Customer>>(
       stream: database.watchAllCustomers(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
+        // Debug logging
+        debugPrint(
+          'Summary Card - Connection State: ${snapshot.connectionState}',
+        );
+        debugPrint('Summary Card - Has Data: ${snapshot.hasData}');
+        debugPrint('Summary Card - Has Error: ${snapshot.hasError}');
+        if (snapshot.hasData) {
+          debugPrint('Summary Card - Customer Count: ${snapshot.data!.length}');
+        }
+        if (snapshot.hasError) {
+          debugPrint('Summary Card - Error: ${snapshot.error}');
+        }
+
+        // Handle error state
+        if (snapshot.hasError) {
+          return Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFEF4444)),
+            ),
+            child: Text(
+              'Error loading summary: ${snapshot.error}',
+              style: const TextStyle(color: Color(0xFFEF4444)),
+            ),
+          );
+        }
+
+        // Handle loading state
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFE5E7EB),
+              ),
+            ),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // Handle no data (but not loading)
+        if (!snapshot.hasData) {
+          debugPrint('Summary Card - No data available');
+          return const SizedBox.shrink();
+        }
 
         double totalGet = 0;
         double totalGive = 0;

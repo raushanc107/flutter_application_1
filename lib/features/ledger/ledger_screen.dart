@@ -655,9 +655,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if ((tx.isInterestEntry ?? false) ||
         (tx.interestRate != null && tx.interestRate! > 0) ||
         (tx.isRecurringParent || tx.amount == 0)) {
-      badgeBgColor = Colors.white;
-      badgeTextColor = const Color(0xFF4F46E5);
-      badgeMonthColor = const Color(0xFF4F46E5);
+      // Interest/Recurring transactions
+      if (Theme.of(context).brightness == Brightness.dark) {
+        badgeBgColor = const Color(0xFF312E81); // Dark indigo background
+        badgeTextColor = const Color(0xFF818CF8); // Light indigo icon
+        badgeMonthColor = const Color(0xFF818CF8);
+      } else {
+        badgeBgColor = const Color(0xFFEDE9FE); // Light indigo background
+        badgeTextColor = const Color(0xFF4F46E5); // Indigo icon
+        badgeMonthColor = const Color(0xFF4F46E5);
+      }
     } else if (Theme.of(context).brightness == Brightness.dark) {
       badgeBgColor = const Color(0xFF374151);
       badgeTextColor = Colors.white;
@@ -680,9 +687,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
         children: [
           if ((tx.isInterestEntry ?? false) ||
               (tx.interestRate != null && tx.interestRate! > 0))
-            const Icon(Icons.percent, size: 24, color: Color(0xFF4F46E5))
+            Icon(Icons.percent, size: 24, color: badgeTextColor)
           else if (tx.isRecurringParent || tx.amount == 0)
-            const Icon(Icons.repeat, size: 24, color: Color(0xFF4F46E5))
+            Icon(Icons.repeat, size: 24, color: badgeTextColor)
           else ...[
             Text(
               DateFormat('dd').format(tx.date),
@@ -829,9 +836,16 @@ class _LedgerScreenState extends State<LedgerScreen> {
     if ((tx.isInterestEntry ?? false) ||
         (tx.interestRate != null && tx.interestRate! > 0) ||
         (tx.isRecurringParent || tx.amount == 0)) {
-      badgeBgColor = Colors.white;
-      badgeTextColor = const Color(0xFF4F46E5);
-      badgeMonthColor = const Color(0xFF4F46E5);
+      // Interest/Recurring transactions
+      if (Theme.of(context).brightness == Brightness.dark) {
+        badgeBgColor = const Color(0xFF312E81); // Dark indigo background
+        badgeTextColor = const Color(0xFF818CF8); // Light indigo icon
+        badgeMonthColor = const Color(0xFF818CF8);
+      } else {
+        badgeBgColor = const Color(0xFFEDE9FE); // Light indigo background
+        badgeTextColor = const Color(0xFF4F46E5); // Indigo icon
+        badgeMonthColor = const Color(0xFF4F46E5);
+      }
     } else if (Theme.of(context).brightness == Brightness.dark) {
       badgeBgColor = const Color(0xFF374151);
       badgeTextColor = Colors.white;
@@ -881,17 +895,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         children: [
                           if ((tx.isInterestEntry ?? false) ||
                               (tx.interestRate != null && tx.interestRate! > 0))
-                            const Icon(
-                              Icons.percent,
-                              size: 24,
-                              color: Color(0xFF4F46E5),
-                            )
+                            Icon(Icons.percent, size: 24, color: badgeTextColor)
                           else if (tx.isRecurringParent || tx.amount == 0)
-                            const Icon(
-                              Icons.repeat,
-                              size: 24,
-                              color: Color(0xFF4F46E5), // Indigo
-                            )
+                            Icon(Icons.repeat, size: 24, color: badgeTextColor)
                           else ...[
                             Text(
                               DateFormat('dd').format(tx.date),

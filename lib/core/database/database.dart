@@ -75,28 +75,48 @@ class AppDatabase extends _$AppDatabase {
       },
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 2) {
-          await m.addColumn(transactions, transactions.interestRate);
-          await m.addColumn(transactions, transactions.interestPeriod);
-          await m.addColumn(transactions, transactions.interestType);
-          await m.addColumn(
-            transactions,
-            transactions.lastInterestCalculatedDate,
-          );
-          await m.addColumn(transactions, transactions.parentTransactionId);
-          await m.addColumn(transactions, transactions.isInterestEntry);
+          try {
+            await m.addColumn(transactions, transactions.interestRate);
+          } catch (_) {}
+          try {
+            await m.addColumn(transactions, transactions.interestPeriod);
+          } catch (_) {}
+          try {
+            await m.addColumn(transactions, transactions.interestType);
+          } catch (_) {}
+          try {
+            await m.addColumn(
+              transactions,
+              transactions.lastInterestCalculatedDate,
+            );
+          } catch (_) {}
+          try {
+            await m.addColumn(transactions, transactions.parentTransactionId);
+          } catch (_) {}
+          try {
+            await m.addColumn(transactions, transactions.isInterestEntry);
+          } catch (_) {}
         }
         if (from < 3) {
-          await m.createTable(recurringTransactions);
+          try {
+            await m.createTable(recurringTransactions);
+          } catch (_) {}
         }
         if (from < 4) {
-          await m.addColumn(transactions, transactions.isRecurringParent);
-          await m.addColumn(
-            recurringTransactions,
-            recurringTransactions.linkedTransactionId,
-          );
+          try {
+            await m.addColumn(transactions, transactions.isRecurringParent);
+          } catch (_) {}
+          try {
+            await m.addColumn(
+              recurringTransactions,
+              recurringTransactions.linkedTransactionId,
+            );
+          } catch (_) {}
         }
         if (from < 5) {
-          await m.addColumn(transactions, transactions.isPaid);
+          try {
+            await m.addColumn(transactions, transactions.isPaid);
+          } catch (_) {}
         }
       },
     );
