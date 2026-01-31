@@ -18,11 +18,17 @@ class BackupService {
     // 1. Fetch all data
     final customers = await _db.getAllCustomers();
     final transactions = await _db.getAllTransactions();
+    final recurringTransactions = await _db.getAllActiveRecurringTransactions();
 
     // 2. Convert to JSON
     final data = {
       'customers': customers.map((c) => c.toJson()).toList(),
       'transactions': transactions.map((t) => t.toJson()).toList(),
+      'recurringTransactions': recurringTransactions
+          .map((r) => r.toJson())
+          .toList(),
+      'version': 5, // Schema version for compatibility checking
+      'exportDate': DateTime.now().toIso8601String(),
     };
     final jsonString = jsonEncode(data);
 
@@ -116,25 +122,96 @@ class BackupService {
         .toSet();
 
     for (final t in transactionsData) {
-      final transaction = Transaction.fromJson(t);
-      if (!existingTransactionIds.contains(transaction.id)) {
+      // Parse transaction data with null-safe handling for old backups
+      final Map<String, dynamic> txData = t as Map<String, dynamic>;
+
+      if (!existingTransactionIds.contains(txData['id'])) {
         await _db.insertTransaction(
           TransactionsCompanion(
-            id: drift.Value(transaction.id),
-            customerId: drift.Value(transaction.customerId),
-            amount: drift.Value(transaction.amount),
-            type: drift.Value(transaction.type),
-            date: drift.Value(transaction.date),
-            notes: drift.Value(transaction.notes),
+            id: drift.Value(txData['id'] as String),
+            customerId: drift.Value(txData['customerId'] as String),
+            amount: drift.Value((txData['amount'] as num).toDouble()),
+            type: drift.Value(txData['type'] as String),
+            date: drift.Value(DateTime.parse(txData['date'] as String)),
+            notes: drift.Value(txData['notes'] as String?),
+            // Handle new fields with defaults for old backups
+            interestRate: drift.Value(
+              txData['interestRate'] != null
+                  ? (txData['interestRate'] as num).toDouble()
+                  : null,
+            ),
+            interestPeriod: drift.Value(txData['interestPeriod'] as String?),
+            interestType: drift.Value(txData['interestType'] as String?),
+            lastInterestCalculatedDate: drift.Value(
+              txData['lastInterestCalculatedDate'] != null
+                  ? DateTime.parse(
+                      txData['lastInterestCalculatedDate'] as String,
+                    )
+                  : null,
+            ),
+            parentTransactionId: drift.Value(
+              txData['parentTransactionId'] as String?,
+            ),
+            isInterestEntry: drift.Value(
+              txData['isInterestEntry'] as bool? ?? false,
+            ),
+            isRecurringParent: drift.Value(
+              txData['isRecurringParent'] as bool? ?? false,
+            ),
+            isPaid: drift.Value(txData['isPaid'] as bool? ?? false),
           ),
         );
         addedTransactions++;
       }
     }
 
-    // 5. Recalculate all balances to ensure consistency
+    // 5. Merge Recurring Transactions (if present in backup)
+    final recurringTransactionsData =
+        (data['recurringTransactions'] as List?) ?? [];
+    int addedRecurringTransactions = 0;
+
+    if (recurringTransactionsData.isNotEmpty) {
+      final existingRecurring = await _db.getAllActiveRecurringTransactions();
+      final existingRecurringIds = existingRecurring.map((r) => r.id).toSet();
+
+      for (final r in recurringTransactionsData) {
+        final Map<String, dynamic> recData = r as Map<String, dynamic>;
+
+        if (!existingRecurringIds.contains(recData['id'])) {
+          await _db.insertRecurringTransaction(
+            RecurringTransactionsCompanion(
+              id: drift.Value(recData['id'] as String),
+              customerId: drift.Value(recData['customerId'] as String),
+              amount: drift.Value((recData['amount'] as num).toDouble()),
+              type: drift.Value(recData['type'] as String),
+              frequency: drift.Value(recData['frequency'] as String),
+              startDate: drift.Value(
+                DateTime.parse(recData['startDate'] as String),
+              ),
+              note: drift.Value(recData['note'] as String),
+              isActive: drift.Value(recData['isActive'] as bool? ?? true),
+              lastGeneratedDate: drift.Value(
+                recData['lastGeneratedDate'] != null
+                    ? DateTime.parse(recData['lastGeneratedDate'] as String)
+                    : null,
+              ),
+              linkedTransactionId: drift.Value(
+                recData['linkedTransactionId'] as String?,
+              ),
+            ),
+          );
+          addedRecurringTransactions++;
+        }
+      }
+    }
+
+    // 6. Recalculate all balances to ensure consistency
     await _db.recalculateAllBalances();
 
-    return {'customers': addedCustomers, 'transactions': addedTransactions};
+    return {
+      'customers': addedCustomers,
+      'transactions': addedTransactions,
+      'recurringTransactions': addedRecurringTransactions,
+    };
   }
 }

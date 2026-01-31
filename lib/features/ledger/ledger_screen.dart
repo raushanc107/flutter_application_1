@@ -1432,10 +1432,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
     AppDatabase database,
     String type, {
     Transaction? existingTransaction,
-  }) {
+  }) async {
+    // For recurring parent transactions, fetch the actual recurring config
+    RecurringTransaction? recurringConfig;
+    if (existingTransaction?.isRecurringParent == true) {
+      recurringConfig =
+          await (database.select(database.recurringTransactions)..where(
+                (t) => t.linkedTransactionId.equals(existingTransaction!.id),
+              ))
+              .getSingleOrNull();
+    }
+
     final formKey = GlobalKey<FormState>();
+    // Use recurring config amount if this is a recurring parent, otherwise use transaction amount
     final amountController = TextEditingController(
-      text: existingTransaction?.amount.toStringAsFixed(0) ?? '',
+      text:
+          (recurringConfig?.amount ?? existingTransaction?.amount)
+              ?.toStringAsFixed(0) ??
+          '',
     );
     final notesController = TextEditingController(
       text: existingTransaction?.notes ?? '',
@@ -1449,14 +1463,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
     String interestPeriod =
         existingTransaction?.interestPeriod ?? 'MONTHLY'; // Default keys
 
-    // Recurring State
-    bool isRecurring = false;
-    String recurringFrequency = 'MONTHLY';
+    // Recurring State - initialize from existing config if editing a recurring parent
+    bool isRecurring = existingTransaction?.isRecurringParent ?? false;
+    String recurringFrequency = recurringConfig?.frequency ?? 'MONTHLY';
 
-    // If editing, disable recurring option or just don't show it for simplicity
-    // Supporting converting a normal tx to recurring is complex logic (deleting old one?)
-    // So we only show recurring checkbox when creating NEW transaction.
-    bool canMakeRecurring = existingTransaction == null;
+    // Allow editing recurring settings if this is a recurring parent
+    // Or allow creating new recurring if this is a new transaction
+    bool canMakeRecurring =
+        existingTransaction == null || (existingTransaction.isRecurringParent);
 
     DateTime selectedDate = existingTransaction?.date ?? DateTime.now();
     TimeOfDay selectedTime = TimeOfDay.fromDateTime(selectedDate);
@@ -1985,26 +1999,66 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   double balanceAdjustment = 0;
 
                   if (existingTransaction != null) {
-                    // Reverse old impact
-                    balanceAdjustment -= (existingTransaction.type == 'GAVE'
-                        ? existingTransaction.amount
-                        : -existingTransaction.amount);
-                    // Apply new impact
-                    balanceAdjustment += (type == 'GAVE' ? amount : -amount);
-
-                    await database.updateTransaction(
-                      existingTransaction.copyWith(
-                        amount: amount,
-                        date: finalDateTime,
-                        notes: drift.Value(notes),
-                        interestRate: drift.Value(interestRate),
-                        interestPeriod: drift.Value(
-                          isInterestEnabled ? interestPeriod : null,
+                    // Check if this is a recurring parent transaction
+                    if (existingTransaction.isRecurringParent) {
+                      // Update the parent transaction (keep amount as 0)
+                      await database.updateTransaction(
+                        existingTransaction.copyWith(
+                          date: finalDateTime,
+                          notes: drift.Value(notes),
                         ),
-                        // Reset calculation date if details changed
-                        lastInterestCalculatedDate: const drift.Value(null),
-                      ),
-                    );
+                      );
+
+                      // Update the recurring config with the new amount and frequency
+                      final config =
+                          await (database.select(database.recurringTransactions)
+                                ..where(
+                                  (t) => t.linkedTransactionId.equals(
+                                    existingTransaction.id,
+                                  ),
+                                ))
+                              .getSingleOrNull();
+
+                      if (config != null) {
+                        await database.updateRecurringTransaction(
+                          config.copyWith(
+                            amount: amount,
+                            type: type,
+                            frequency: recurringFrequency,
+                            startDate: finalDateTime,
+                            note: notes,
+                          ),
+                        );
+                      }
+
+                      // Regenerate recurring transactions
+                      await RecurringService.checkAndGenerateDueTransactions(
+                        database,
+                      );
+                      await _recalculateBalance(database);
+                    } else {
+                      // Regular transaction update
+                      // Reverse old impact
+                      balanceAdjustment -= (existingTransaction.type == 'GAVE'
+                          ? existingTransaction.amount
+                          : -existingTransaction.amount);
+                      // Apply new impact
+                      balanceAdjustment += (type == 'GAVE' ? amount : -amount);
+
+                      await database.updateTransaction(
+                        existingTransaction.copyWith(
+                          amount: amount,
+                          date: finalDateTime,
+                          notes: drift.Value(notes),
+                          interestRate: drift.Value(interestRate),
+                          interestPeriod: drift.Value(
+                            isInterestEnabled ? interestPeriod : null,
+                          ),
+                          // Reset calculation date if details changed
+                          lastInterestCalculatedDate: const drift.Value(null),
+                        ),
+                      );
+                    }
                   } else {
                     if (isRecurring) {
                       final parentUuid = const Uuid().v4();
@@ -2064,7 +2118,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     }
                   }
 
-                  if (isRecurring) {
+                  if (isRecurring ||
+                      (existingTransaction?.isRecurringParent ?? false)) {
                     // Recalculate full balance to be safe as service might have added multiple entries
                     await _recalculateBalance(database);
                   } else {
