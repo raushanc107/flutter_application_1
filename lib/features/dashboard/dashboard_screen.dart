@@ -199,23 +199,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
           decimalDigits: 0,
         );
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
         return Container(
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(16),
+            color: isDark
+                ? const Color(0xFF1E293B).withValues(alpha: 0.6)
+                : Colors.white.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF334155)
-                  : const Color(0xFFE5E7EB),
+              color: isDark
+                  ? const Color(0xFF334155).withValues(alpha: 0.3)
+                  : Colors.white.withValues(alpha: 0.4),
             ),
             boxShadow: [
               BoxShadow(
-                color: Theme.of(context).brightness == Brightness.dark
+                color: isDark
                     ? Colors.black.withValues(alpha: 0.2)
-                    : Colors.black.withValues(alpha: 0.05),
-                blurRadius: 2,
-                offset: const Offset(0, 1),
+                    : const Color(0xFF000000).withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -257,9 +261,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               Container(
                 height: 1,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFF334155)
-                    : const Color(0xFFE5E7EB),
+                color: isDark
+                    ? const Color(0xFF334155).withValues(alpha: 0.3)
+                    : const Color(0xFFE5E7EB).withValues(alpha: 0.5),
               ),
               Row(
                 children: [
@@ -296,9 +300,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Container(
                     width: 1,
                     height: 32,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE5E7EB),
+                    color: isDark
+                        ? const Color(0xFF334155).withValues(alpha: 0.3)
+                        : const Color(0xFFE5E7EB).withValues(alpha: 0.5),
                   ),
                   Expanded(
                     child: Padding(
@@ -579,81 +583,134 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ? const Color(0xFF6B7280)
         : (isGet ? const Color(0xFF10B981) : const Color(0xFFEF4444));
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Theme.of(context).cardColor,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xFF334155)
-                : const Color(0xFFE5E7EB),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark
+              ? const Color(0xFF1E293B).withValues(alpha: 0.6)
+              : Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark
+                ? const Color(0xFF334155).withValues(alpha: 0.3)
+                : Colors.white.withValues(alpha: 0.4),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.2)
+                  : const Color(0xFF000000).withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        clipBehavior: Clip.antiAlias,
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 2,
-          ),
-          leading: CircleAvatar(
-            radius: 18,
-            backgroundColor: Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xFF312E81)
-                : const Color(0xFFE0E7FF),
-            foregroundColor: Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xFF818CF8)
-                : const Color(0xFF4F46E5),
-            child: Text(
-              customer.name[0].toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LedgerScreen(customer: customer),
+                ),
+              );
+            },
+            onLongPress: () {
+              final database = Provider.of<AppDatabase>(context, listen: false);
+              _showCustomerOptions(context, database, customer);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: isDark
+                        ? const Color(0xFF312E81)
+                        : const Color(0xFFE0E7FF),
+                    foregroundColor: isDark
+                        ? const Color(0xFF818CF8)
+                        : const Color(0xFF4F46E5),
+                    child: Text(
+                      customer.name[0].toUpperCase(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          customer.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF111827),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          DateFormat(
+                            'dd MMM yyyy',
+                          ).format(customer.lastUpdated),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        formatter.format(customer.currentBalance.abs()),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: color,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        AppTranslations.get(
+                          Provider.of<LanguageProvider>(
+                            context,
+                          ).locale.languageCode,
+                          isZero
+                              ? 'no_due'
+                              : (isGet ? 'ledger_get' : 'ledger_give'),
+                        ),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-          title: Text(
-            customer.name,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            DateFormat('dd MMM yyyy').format(customer.lastUpdated),
-            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-          ),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                formatter.format(customer.currentBalance.abs()),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: color,
-                ),
-              ),
-              Text(
-                AppTranslations.get(
-                  Provider.of<LanguageProvider>(context).locale.languageCode,
-                  isZero ? 'no_due' : (isGet ? 'ledger_get' : 'ledger_give'),
-                ),
-                style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
-              ),
-            ],
-          ),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => LedgerScreen(customer: customer),
-              ),
-            );
-          },
-          onLongPress: () {
-            final database = Provider.of<AppDatabase>(context, listen: false);
-            _showCustomerOptions(context, database, customer);
-          },
         ),
       ),
     );
