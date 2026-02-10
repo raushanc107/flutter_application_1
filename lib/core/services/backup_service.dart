@@ -57,6 +57,17 @@ class BackupService {
     }
   }
 
+  /// Helper to parse DateTime from either String (ISO8601) or int (milliseconds since epoch)
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is String) {
+      return DateTime.parse(value);
+    } else if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value);
+    }
+    throw Exception('Invalid date format: $value');
+  }
+
   Future<Map<String, int>> importData() async {
     // 1. Pick file
     final result = await FilePicker.platform.pickFiles(
@@ -100,15 +111,17 @@ class BackupService {
     final existingCustomerIds = existingCustomers.map((c) => c.id).toSet();
 
     for (final c in customersData) {
-      final customer = Customer.fromJson(c);
-      if (!existingCustomerIds.contains(customer.id)) {
+      final Map<String, dynamic> custData = c as Map<String, dynamic>;
+      if (!existingCustomerIds.contains(custData['id'])) {
         await _db.insertCustomer(
           CustomersCompanion(
-            id: drift.Value(customer.id),
-            name: drift.Value(customer.name),
-            phoneNumber: drift.Value(customer.phoneNumber),
-            currentBalance: drift.Value(customer.currentBalance),
-            lastUpdated: drift.Value(customer.lastUpdated),
+            id: drift.Value(custData['id'] as String),
+            name: drift.Value(custData['name'] as String),
+            phoneNumber: drift.Value(custData['phoneNumber'] as String),
+            currentBalance: drift.Value(
+              (custData['currentBalance'] as num).toDouble(),
+            ),
+            lastUpdated: drift.Value(_parseDateTime(custData['lastUpdated'])!),
           ),
         );
         addedCustomers++;
@@ -132,7 +145,7 @@ class BackupService {
             customerId: drift.Value(txData['customerId'] as String),
             amount: drift.Value((txData['amount'] as num).toDouble()),
             type: drift.Value(txData['type'] as String),
-            date: drift.Value(DateTime.parse(txData['date'] as String)),
+            date: drift.Value(_parseDateTime(txData['date'])!),
             notes: drift.Value(txData['notes'] as String?),
             // Handle new fields with defaults for old backups
             interestRate: drift.Value(
@@ -143,11 +156,7 @@ class BackupService {
             interestPeriod: drift.Value(txData['interestPeriod'] as String?),
             interestType: drift.Value(txData['interestType'] as String?),
             lastInterestCalculatedDate: drift.Value(
-              txData['lastInterestCalculatedDate'] != null
-                  ? DateTime.parse(
-                      txData['lastInterestCalculatedDate'] as String,
-                    )
-                  : null,
+              _parseDateTime(txData['lastInterestCalculatedDate']),
             ),
             parentTransactionId: drift.Value(
               txData['parentTransactionId'] as String?,
@@ -185,15 +194,11 @@ class BackupService {
               amount: drift.Value((recData['amount'] as num).toDouble()),
               type: drift.Value(recData['type'] as String),
               frequency: drift.Value(recData['frequency'] as String),
-              startDate: drift.Value(
-                DateTime.parse(recData['startDate'] as String),
-              ),
+              startDate: drift.Value(_parseDateTime(recData['startDate'])!),
               note: drift.Value(recData['note'] as String),
               isActive: drift.Value(recData['isActive'] as bool? ?? true),
               lastGeneratedDate: drift.Value(
-                recData['lastGeneratedDate'] != null
-                    ? DateTime.parse(recData['lastGeneratedDate'] as String)
-                    : null,
+                _parseDateTime(recData['lastGeneratedDate']),
               ),
               linkedTransactionId: drift.Value(
                 recData['linkedTransactionId'] as String?,
