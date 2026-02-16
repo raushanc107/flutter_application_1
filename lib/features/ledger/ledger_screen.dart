@@ -338,14 +338,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
       );
 
       // Generate PDF
-      final pdf = await PdfService.generateCustomerReport(
+      final pdfBytes = await PdfService.generateCustomerReport(
         customer: _currentCustomer,
         transactions: transactions,
         config: config,
       );
 
       // Save PDF to bytes
-      final pdfBytes = await pdf.save();
+      // final pdfBytes = await pdf.save(); // Removed as service now returns bytes directly
 
       // Close loading dialog
       if (context.mounted) {

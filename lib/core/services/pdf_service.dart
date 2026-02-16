@@ -1,16 +1,40 @@
+import 'package:flutter/foundation.dart'; // For compute
+import 'dart:typed_data'; // For Uint8List
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import '../database/database.dart';
 import '../models/pdf_config.dart';
 
+import 'package:printing/printing.dart';
+
 class PdfService {
-  static Future<pw.Document> generateCustomerReport({
+  static Future<Uint8List> generateCustomerReport({
     required Customer customer,
     required List<Transaction> transactions,
     required PdfConfig config,
   }) async {
+    final font = await PdfGoogleFonts.notoSansRegular();
+
+    return await compute(
+      _generatePdfBytes,
+      _PdfGenerationParams(
+        customer: customer,
+        transactions: transactions,
+        config: config,
+        font: font,
+      ),
+    );
+  }
+
+  static Future<Uint8List> _generatePdfBytes(
+    _PdfGenerationParams params,
+  ) async {
     final pdf = pw.Document();
+    final customer = params.customer;
+    final transactions = params.transactions;
+    final config = params.config;
+    final font = params.font;
 
     // Filter transactions for calculations (always exclude paid)
     final transactionsForCalculation = _filterTransactionsForCalculation(
@@ -40,6 +64,7 @@ class PdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
+        theme: pw.ThemeData.withFont(base: font),
         build: (context) {
           final widgets = <pw.Widget>[];
 
@@ -59,7 +84,7 @@ class PdfService {
 
           // Transaction Details
           if (config.includeTransactionDetails && !config.summaryOnly) {
-            widgets.add(
+            widgets.addAll(
               _buildTransactionTable(
                 transactionsForDisplay,
                 formatter,
@@ -75,7 +100,7 @@ class PdfService {
       ),
     );
 
-    return pdf;
+    return pdf.save();
   }
 
   // Filter transactions for calculation (always exclude paid)
@@ -420,64 +445,63 @@ class PdfService {
     );
   }
 
-  static pw.Widget _buildTransactionTable(
+  static List<pw.Widget> _buildTransactionTable(
     List<Transaction> transactions,
     NumberFormat formatter,
     DateFormat dateFormatter,
     PdfConfig config,
   ) {
     if (transactions.isEmpty) {
-      return pw.Container(
-        padding: const pw.EdgeInsets.all(16),
-        alignment: pw.Alignment.center,
-        child: pw.Text(
-          'No transactions found for the selected period',
-          style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
-        ),
-      );
-    }
-
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'Transaction Details',
-          style: pw.TextStyle(
-            fontSize: 16,
-            fontWeight: pw.FontWeight.bold,
-            color: PdfColors.indigo700,
+      return [
+        pw.Container(
+          padding: const pw.EdgeInsets.all(16),
+          alignment: pw.Alignment.center,
+          child: pw.Text(
+            'No transactions found for the selected period',
+            style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
           ),
         ),
-        pw.SizedBox(height: 12),
-        pw.Table(
-          border: pw.TableBorder.all(color: PdfColors.grey300),
-          columnWidths: {
-            0: const pw.FlexColumnWidth(2),
-            1: const pw.FlexColumnWidth(1.5),
-            2: const pw.FlexColumnWidth(3),
-            3: const pw.FlexColumnWidth(1.5),
-            4: const pw.FlexColumnWidth(1),
-          },
-          children: [
-            // Header row
-            pw.TableRow(
-              decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              children: [
-                _buildTableHeader('Date'),
-                _buildTableHeader('Type'),
-                _buildTableHeader('Description'),
-                _buildTableHeader('Amount'),
-                _buildTableHeader('Status'),
-              ],
-            ),
-            // Data rows
-            ...transactions.map(
-              (tx) => _buildTransactionRow(tx, formatter, dateFormatter),
-            ),
-          ],
+      ];
+    }
+
+    return [
+      pw.Text(
+        'Transaction Details',
+        style: pw.TextStyle(
+          fontSize: 16,
+          fontWeight: pw.FontWeight.bold,
+          color: PdfColors.indigo700,
         ),
-      ],
-    );
+      ),
+      pw.SizedBox(height: 12),
+      pw.Table(
+        border: pw.TableBorder.all(color: PdfColors.grey300),
+        columnWidths: {
+          0: const pw.FlexColumnWidth(2),
+          1: const pw.FlexColumnWidth(1.5),
+          2: const pw.FlexColumnWidth(3),
+          3: const pw.FlexColumnWidth(1.5),
+          4: const pw.FlexColumnWidth(1),
+        },
+        children: [
+          // Header row
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+            children: [
+              _buildTableHeader('Date'),
+              _buildTableHeader('Type'),
+              _buildTableHeader('Description'),
+              _buildTableHeader('Amount'),
+              _buildTableHeader('Status'),
+            ],
+          ),
+          // Data rows
+          ...transactions.map(
+            (tx) => _buildTransactionRow(tx, formatter, dateFormatter),
+          ),
+        ],
+      ),
+    ];
   }
 
   static pw.Widget _buildTableHeader(String text) {
@@ -552,4 +576,18 @@ class PdfService {
       ),
     );
   }
+}
+
+class _PdfGenerationParams {
+  final Customer customer;
+  final List<Transaction> transactions;
+  final PdfConfig config;
+  final pw.Font font;
+
+  _PdfGenerationParams({
+    required this.customer,
+    required this.transactions,
+    required this.config,
+    required this.font,
+  });
 }
