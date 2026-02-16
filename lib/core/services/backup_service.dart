@@ -1,20 +1,19 @@
 import 'dart:convert';
+import 'dart:typed_data'; // For Uint8List
 import 'package:drift/drift.dart' as drift;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:universal_html/html.dart' as html;
 import '../database/database.dart';
-
-import 'dart:io';
 
 class BackupService {
   final AppDatabase _db;
 
   BackupService(this._db);
 
-  Future<void> exportData() async {
+  Future<String> createBackupJson() async {
+    // ... (same implementation)
     // 1. Fetch all data
     final customers = await _db.getAllCustomers();
     final transactions = await _db.getAllTransactions();
@@ -30,7 +29,28 @@ class BackupService {
       'version': 5, // Schema version for compatibility checking
       'exportDate': DateTime.now().toIso8601String(),
     };
-    final jsonString = jsonEncode(data);
+    return jsonEncode(data);
+  }
+
+  /// Returns bytes of the backup file
+  Future<List<int>> createBackupBytes() async {
+    final jsonString = await createBackupJson();
+    return utf8.encode(jsonString);
+  }
+
+  /// Returns an XFile for sharing/uploading
+  Future<XFile> createBackupXFile() async {
+    final bytes = await createBackupBytes();
+    final date = DateTime.now().toIso8601String().split('T')[0];
+    return XFile.fromData(
+      Uint8List.fromList(bytes),
+      mimeType: 'application/json',
+      name: 'khatabook_backup_$date.json',
+    );
+  }
+
+  Future<void> exportData() async {
+    final jsonString = await createBackupJson();
 
     // 3. Save/Share
     if (kIsWeb) {
@@ -48,12 +68,9 @@ class BackupService {
       html.document.body!.children.remove(anchor);
       html.Url.revokeObjectUrl(url);
     } else {
-      // Mobile: Save to temp file and share
-      final directory = await getTemporaryDirectory();
-      final date = DateTime.now().toIso8601String().split('T')[0];
-      final file = File('${directory.path}/khatabook_backup_$date.json');
-      await file.writeAsString(jsonString);
-      await Share.shareXFiles([XFile(file.path)], text: 'Khatabook Backup');
+      // Mobile: Share XFile
+      final xFile = await createBackupXFile();
+      await Share.shareXFiles([xFile], text: 'Khatabook Backup');
     }
   }
 
@@ -87,12 +104,16 @@ class BackupService {
       if (bytes == null) throw Exception('Could not read file data');
       content = utf8.decode(bytes);
     } else {
-      // Mobile: Read from path
+      // Mobile: Read from path using XFile to avoid dart:io dependency directly
       final path = result.files.single.path;
       if (path == null) throw Exception('Invalid file path');
-      content = await File(path).readAsString();
+      content = await XFile(path).readAsString();
     }
 
+    return importFromJsonString(content);
+  }
+
+  Future<Map<String, int>> importFromJsonString(String content) async {
     final data = jsonDecode(content);
 
     if (data is! Map<String, dynamic>) {

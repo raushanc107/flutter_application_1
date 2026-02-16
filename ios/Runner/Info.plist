@@ -51,5 +51,16 @@
 	<array>
 		<string>whatsapp</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.583834828571-tqet2jn4gmtn2nkfchcl5tmi7ale6a52</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -14,9 +14,26 @@ import 'core/database/unsupported.dart'
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/services/interest_service.dart';
 import 'core/services/recurring_service.dart';
+import 'core/services/google_drive_auth_service.dart';
+import 'core/services/google_drive_storage_service.dart';
+import 'core/services/backup_service.dart';
+import 'core/services/backup_manager.dart';
+
+import 'package:workmanager/workmanager.dart';
+import 'core/services/background_backup_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Workmanager for background tasks (Mobile only)
+  if (!kIsWeb) {
+    Workmanager().initialize(
+      callbackDispatcher, // The top level function, aka callbackDispatcher
+      isInDebugMode:
+          false, // If enabled it will post a notification whenever the task is running
+    );
+  }
 
   final database = AppDatabase(db_connection.connect());
 
@@ -35,6 +52,19 @@ void main() async {
     debugPrint('Error generating recurring transactions: $e');
   }
 
+  // Initialize Backup Services
+  final authService = GoogleDriveAuthService();
+  await authService.init();
+
+  final backupService = BackupService(database);
+  final storageService = GoogleDriveStorageService(authService);
+  final backupManager = BackupManager(
+    backupService,
+    storageService,
+    authService,
+  );
+  await backupManager.init();
+
   runApp(
     MultiProvider(
       providers: [
@@ -44,6 +74,14 @@ void main() async {
         ),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
+
+        // Backup Providers
+        ChangeNotifierProvider<GoogleDriveAuthService>.value(
+          value: authService,
+        ),
+        Provider<GoogleDriveStorageService>.value(value: storageService),
+        Provider<BackupService>.value(value: backupService),
+        ChangeNotifierProvider<BackupManager>.value(value: backupManager),
       ],
       child: const KhatabookApp(),
     ),

@@ -12,6 +12,7 @@ import '../../core/localization/translations.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/database/database.dart';
 import '../reports/reports_screen.dart';
+import 'backup_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -128,6 +129,22 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     isDark: isDark,
                     children: [
+                      _buildSettingItem(
+                        icon: Icons.cloud_sync,
+                        label: 'Google Drive Backup',
+                        description: 'Auto-backup your data to Google Drive',
+                        isDark: isDark,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const BackupSettingsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const _Divider(),
                       _buildSettingItem(
                         icon: Icons.download,
                         label: AppTranslations.get(
