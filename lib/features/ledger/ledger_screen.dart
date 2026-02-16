@@ -11,7 +11,12 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../core/localization/translations.dart';
 import '../../core/services/communication_service.dart';
 import '../../core/services/recurring_service.dart';
+import '../../core/services/pdf_service.dart';
+import '../../core/models/pdf_config.dart';
 import '../customers/add_customer_dialog.dart';
+import 'pdf_config_dialog.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
 
 class LedgerScreen extends StatefulWidget {
   final Customer customer;
@@ -167,6 +172,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
               onTap: () => _handleReminder(context, isWhatsApp: false),
             ),
           ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildReminderButton(
+              context,
+              icon: Icons.picture_as_pdf,
+              label: 'Export',
+              color: const Color(0xFF8B5CF6),
+              onTap: () => _handlePdfExport(
+                context,
+                Provider.of<AppDatabase>(context, listen: false),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -290,6 +308,80 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _handlePdfExport(
+    BuildContext context,
+    AppDatabase database,
+  ) async {
+    // Show configuration dialog
+    final config = await showDialog<PdfConfig>(
+      context: context,
+      builder: (context) => const PdfConfigDialog(),
+    );
+
+    if (config == null || !context.mounted) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // Get all transactions for the customer
+      final transactions = await database.getTransactionsForCustomer(
+        _currentCustomer.id,
+      );
+
+      // Generate PDF
+      final pdf = await PdfService.generateCustomerReport(
+        customer: _currentCustomer,
+        transactions: transactions,
+        config: config,
+      );
+
+      // Save PDF to bytes
+      final pdfBytes = await pdf.save();
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Generate filename
+      final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final filename = '${_currentCustomer.name}_Report_$dateStr.pdf';
+
+      // Share PDF using native share sheet
+      await Printing.sharePdf(bytes: pdfBytes, filename: filename);
+
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF generated successfully!'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating PDF: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
       }
     }
   }
