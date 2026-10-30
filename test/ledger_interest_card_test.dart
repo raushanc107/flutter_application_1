@@ -19,6 +19,18 @@ void main() {
     database = AppDatabase(NativeDatabase.memory());
   });
 
+  void expectDarkCardSurface(WidgetTester tester, Finder finder) {
+    final decoration =
+        tester.widget<Container>(finder).decoration! as BoxDecoration;
+    expect(decoration.color, const Color(0xFF1E293B).withValues(alpha: 0.6));
+    expect(decoration.borderRadius, BorderRadius.circular(20));
+    expect(
+      decoration.border!.top.color,
+      const Color(0xFF334155).withValues(alpha: 0.3),
+    );
+    expect(decoration.boxShadow, hasLength(1));
+  }
+
   tearDown(() async {
     await database.close();
   });
@@ -86,10 +98,17 @@ void main() {
             Provider<AppDatabase>.value(value: database),
             ChangeNotifierProvider(create: (_) => LanguageProvider()),
           ],
-          child: MaterialApp(home: LedgerScreen(customer: customer!)),
+          child: MaterialApp(
+            theme: ThemeData.dark(),
+            home: LedgerScreen(customer: customer!),
+          ),
         ),
       );
       await tester.pumpAndSettle();
+      expectDarkCardSurface(
+        tester,
+        find.byKey(const ValueKey('interest-card-interest-card-parent')),
+      );
       expect(
         find.byKey(const ValueKey('summary-row-interest')),
         findsOneWidget,
@@ -229,11 +248,18 @@ void main() {
           Provider<AppDatabase>.value(value: database),
           ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ],
-        child: MaterialApp(home: LedgerScreen(customer: customer!)),
+        child: MaterialApp(
+          theme: ThemeData.dark(),
+          home: LedgerScreen(customer: customer!),
+        ),
       ),
     );
     await tester.pumpAndSettle();
 
+    expectDarkCardSurface(
+      tester,
+      find.byKey(const ValueKey('recurring-card-recurring-card-parent')),
+    );
     expect(find.text('Monthly Rent'), findsOneWidget);
     expect(find.text('₹3,000'), findsWidgets);
 

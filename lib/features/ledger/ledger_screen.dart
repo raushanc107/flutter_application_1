@@ -1109,6 +1109,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
         final cardBorder = isDark
             ? const Color(0xFF334155)
             : const Color(0xFFE2E8F0);
+        final cardBackground = isDark
+            ? const Color(0xFF1E293B).withValues(alpha: 0.6)
+            : Colors.white.withValues(alpha: 0.6);
+        final outerCardBorder = isDark
+            ? const Color(0xFF334155).withValues(alpha: 0.3)
+            : Colors.white.withValues(alpha: 0.4);
         final statusColor = due > 0
             ? const Color(0xFFF59E0B)
             : const Color(0xFF10B981);
@@ -1119,9 +1125,18 @@ class _LedgerScreenState extends State<LedgerScreen> {
           builder: (context, setCardState) => Container(
             margin: const EdgeInsets.fromLTRB(12, 5, 12, 9),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: cardBorder),
+              color: cardBackground,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: outerCardBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.2)
+                      : const Color(0xFF000000).withValues(alpha: 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             key: ValueKey('recurring-card-${parent.id}'),
             clipBehavior: Clip.antiAlias,
@@ -1523,13 +1538,28 @@ class _LedgerScreenState extends State<LedgerScreen> {
         final cardBorder = isDark
             ? const Color(0xFF334155)
             : const Color(0xFFE2E8F0);
+        final cardBackground = isDark
+            ? const Color(0xFF1E293B).withValues(alpha: 0.6)
+            : Colors.white.withValues(alpha: 0.6);
+        final outerCardBorder = isDark
+            ? const Color(0xFF334155).withValues(alpha: 0.3)
+            : Colors.white.withValues(alpha: 0.4);
 
         return Container(
           margin: const EdgeInsets.fromLTRB(12, 5, 12, 9),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cardBorder),
+            color: cardBackground,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: outerCardBorder),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : const Color(0xFF000000).withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           key: ValueKey('interest-card-${parent.id}'),
           clipBehavior: Clip.antiAlias,
