@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Khatabook · Ledger layout preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f3f4f6;
+      --surface: #fff;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --green: #059669;
+      --red: #dc4444;
+      --amber: #b77911;
+      --amber-bg: #fff7e8;
+      --purple: #6d5ce8;
+      --purple-bg: #f1eeff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .phone {
+      width: min(100%, 430px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding-bottom: 96px;
+      background: var(--page);
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .back { color: var(--muted); font-size: 22px; }
+    .avatar {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 50%;
+      background: #e9e7ff;
+      color: var(--purple);
+      font-weight: 700;
+    }
+    .person { flex: 1; font-weight: 700; }
+    .menu { color: var(--muted); font-size: 22px; }
+
+    main { padding: 12px 14px 0; }
+
+    .balance {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+    .eyebrow {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .amount-large {
+      margin: 2px 0 12px;
+      color: var(--green);
+      font-size: 30px;
+      font-weight: 750;
+      letter-spacing: -.5px;
+    }
+    .balance-foot {
+      display: flex;
+      flex-direction: column;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+    .balance-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .balance-row + .balance-row {
+      margin-top: 9px;
+      padding-top: 9px;
+      border-top: 1px solid var(--line);
+    }
+    .balance-metric + .balance-metric {
+      padding-left: 16px;
+      border-left: 1px solid var(--line);
+    }
+    .small-amount { margin-top: 2px; font-size: 16px; font-weight: 700; }
+    .due-interest { color: var(--amber); }
+
+    .quick-actions {
+      display: flex;
+      justify-content: space-around;
+      padding: 9px 0 11px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .quick-actions span { display: flex; align-items: center; gap: 5px; }
+    .quick-actions b { color: var(--purple); font-size: 15px; }
+
+    .month-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 3px 2px 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .8px;
+    }
+    .month-heading::after { height: 1px; flex: 1; background: var(--line); content: ""; }
+
+    .month-group { display: flex; flex-direction: column; gap: 8px; }
+    .normal-group {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+
+    .normal-row {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-height: 72px;
+      padding: 11px 13px;
+    }
+    .normal-row + .normal-row { border-top: 1px solid var(--line); }
+    .date {
+      display: grid;
+      width: 38px;
+      flex: 0 0 38px;
+      place-items: center;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.15;
+    }
+    .date strong { color: var(--text); font-size: 16px; }
+    .row-copy { min-width: 0; flex: 1; }
+    .row-title { overflow: hidden; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .row-meta { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .row-amount { text-align: right; font-weight: 700; white-space: nowrap; }
+    .row-amount small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-weight: 500; }
+    .green { color: var(--green); }
+    .red { color: var(--red); }
+
+    .special-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .special-main {
+      padding: 12px;
+      cursor: pointer;
+    }
+    .special-head { display: flex; align-items: center; gap: 10px; }
+    .special-icon {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--purple-bg);
+      color: var(--purple);
+      font-size: 18px;
+    }
+    .special-info { min-width: 0; flex: 1; }
+    .special-title { overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .special-subtitle { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .principal { text-align: right; font-size: 15px; font-weight: 750; white-space: nowrap; }
+    .principal small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-weight: 500; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+    .metric { padding: 0 8px; border-right: 1px solid var(--line); }
+    .metric:first-child { padding-left: 0; }
+    .metric:last-child { padding-right: 0; border-right: 0; }
+    .metric-label { color: var(--muted); font-size: 10px; }
+    .metric-value { margin-top: 3px; font-size: 12px; font-weight: 750; }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 40px;
+      padding: 5px 8px 5px 11px;
+      background: var(--amber-bg);
+      color: var(--amber);
+      font-size: 11px;
+      font-weight: 750;
+    }
+    .status .fill { flex: 1; }
+    .status button {
+      border: 0;
+      border-radius: 7px;
+      padding: 7px 9px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    .chevron { color: var(--muted); font-size: 18px; transition: transform .18s ease; }
+    .special-card.open .chevron { transform: rotate(180deg); }
+    .details { display: none; padding: 12px; border-top: 1px solid var(--line); }
+    .special-card.open .details { display: block; }
+    .details-heading { margin: 2px 0 7px; color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .6px; text-transform: uppercase; }
+    .record {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 7px 0;
+      border-top: 1px solid var(--line);
+    }
+    .record-copy { min-width: 0; flex: 1; }
+    .record-title { font-size: 12px; font-weight: 650; }
+    .record-date { margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .record-value { font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .record-value.paid { color: var(--muted); text-decoration: line-through; }
+    .record-action { color: var(--green); font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .paid-badge {
+      display: inline-block;
+      margin-left: 5px;
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #e8f7f0;
+      color: var(--green);
+      font-size: 8px;
+      font-weight: 750;
+      vertical-align: middle;
+    }
+
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      display: flex;
+      width: min(100%, 430px);
+      gap: 10px;
+      padding: 11px 14px calc(11px + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      border-top: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .bottom-bar button {
+      flex: 1;
+      border: 0;
+      border-radius: 10px;
+      padding: 13px 8px;
+      color: #fff;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 750;
+    }
+    .gave { background: var(--red); }
+    .got { background: var(--green); }
+    .caption { margin: 12px 2px 18px; color: var(--muted); font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <header>
+      <span class="back" aria-hidden="true">‹</span>
+      <div class="avatar">A</div>
+      <div class="person">Amit Sharma</div>
+      <span class="menu" aria-hidden="true">⋯</span>
+    </header>
+
+    <main>
+      <section class="balance" aria-label="Customer balance">
+        <div class="eyebrow">YOU'LL GET</div>
+        <div class="amount-large">₹12,500</div>
+        <div class="balance-foot">
+          <div class="balance-row">
+            <div class="balance-metric">
+              <div class="eyebrow">Interest due</div>
+              <div class="small-amount due-interest">₹240</div>
+            </div>
+            <div class="balance-metric">
+              <div class="eyebrow">Interest paid</div>
+              <div class="small-amount">₹1,200</div>
+            </div>
+          </div>
+          <div class="balance-row">
+            <div class="balance-metric">
+              <div class="eyebrow">Recurring due</div>
+              <div class="small-amount due-interest">₹3,000</div>
+            </div>
+            <div class="balance-metric">
+              <div class="eyebrow">Recurring paid</div>
+              <div class="small-amount">₹6,000</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <nav class="quick-actions" aria-label="Ledger actions">
+        <span><b>◉</b> WhatsApp</span>
+        <span><b>▤</b> SMS</span>
+        <span><b>↥</b> Export</span>
+      </nav>
+
+      <div class="month-heading">OCTOBER 2026</div>
+      <section class="month-group" aria-label="October transactions">
+        <div class="normal-group" aria-label="Two regular transactions">
+          <article class="normal-row">
+            <div class="date"><strong>31</strong> OCT</div>
+            <div class="row-copy">
+              <div class="row-title">Cash payment</div>
+              <div class="row-meta">10:42 AM · Cash</div>
+            </div>
+            <div class="row-amount green">+₹2,000<small>You got</small></div>
+          </article>
+          <article class="normal-row">
+            <div class="date"><strong>29</strong> OCT</div>
+            <div class="row-copy">
+              <div class="row-title">Goods delivered</div>
+              <div class="row-meta">2:18 PM · 3 items</div>
+            </div>
+            <div class="row-amount green">+₹1,250<small>You got</small></div>
+          </article>
+        </div>
+
+        <article class="special-card open" id="interest-card">
+          <div class="special-main" role="button" tabindex="0" aria-expanded="true" aria-controls="interest-details">
+            <div class="special-head">
+              <div class="special-icon">%</div>
+              <div class="special-info">
+                <div class="special-title">Business loan</div>
+                <div class="special-subtitle">Interest loan · Since 21 Sep 2026</div>
+              </div>
+              <div class="principal red">₹10,000<small>You gave</small></div>
+            </div>
+            <div class="metrics">
+              <div class="metric">
+                <div class="metric-label">RATE</div>
+                <div class="metric-value">2% monthly</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">INTEREST DUE</div>
+                <div class="metric-value due-interest">₹240</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">NEXT</div>
+                <div class="metric-value">21 Nov</div>
+              </div>
+            </div>
+          </div>
+          <div class="status">
+            <span>⚠</span><span>OVERDUE</span><span class="fill"></span>
+            <button type="button">Mark paid</button>
+            <span class="chevron">⌄</span>
+          </div>
+          <div class="details" id="interest-details">
+            <div class="details-heading">Next scheduled</div>
+            <div class="record">
+              <div class="record-copy">
+                <div class="record-title">November interest</div>
+                <div class="record-date">Due 21 Nov 2026</div>
+              </div>
+              <div class="record-value">₹200</div>
+            </div>
+            <div class="details-heading">Overdue interest</div>
+            <div class="record">
+              <div class="record-copy">
+                <div class="record-title">October interest</div>
+                <div class="record-date">Due 21 Oct 2026</div>
+              </div>
+              <div class="record-value due-interest">₹240</div>
+              <span class="record-action">Mark paid</span>
+            </div>
+            <div class="details-heading">Paid history · ₹1,200</div>
+            <div class="record">
+              <div class="record-copy">
+                <div class="record-title">September interest</div>
+                <div class="record-date">21 Sep 2026</div>
+              </div>
+              <div><span class="record-value paid">₹200</span><span class="paid-badge">PAID</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="special-card" id="second-interest-card">
+          <div class="special-main" role="button" tabindex="0" aria-expanded="false" aria-controls="second-interest-details">
+            <div class="special-head">
+              <div class="special-icon">%</div>
+              <div class="special-info">
+                <div class="special-title">Emergency loan</div>
+                <div class="special-subtitle">Interest loan · Since 18 Oct 2026</div>
+              </div>
+              <div class="principal red">₹5,000<small>You gave</small></div>
+            </div>
+            <div class="metrics">
+              <div class="metric">
+                <div class="metric-label">RATE</div>
+                <div class="metric-value">1.5% monthly</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">INTEREST DUE</div>
+                <div class="metric-value due-interest">₹75</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">NEXT</div>
+                <div class="metric-value">18 Nov</div>
+              </div>
+            </div>
+          </div>
+          <div class="status">
+            <span>◷</span><span>DUE SOON</span><span class="fill"></span>
+            <button type="button">Review</button>
+            <span class="chevron">⌄</span>
+          </div>
+          <div class="details" id="second-interest-details">
+            <div class="details-heading">Next scheduled</div>
+            <div class="record">
+              <div class="record-copy">
+                <div class="record-title">November interest</div>
+                <div class="record-date">Due 18 Nov 2026</div>
+              </div>
+              <div class="record-value">₹75</div>
+            </div>
+          </div>
+        </article>
+
+        <div class="normal-group" aria-label="Three regular transactions">
+          <article class="normal-row">
+            <div class="date"><strong>18</strong> OCT</div>
+            <div class="row-copy">
+              <div class="row-title">Shop supplies</div>
+              <div class="row-meta">9:15 AM · Notes available</div>
+            </div>
+            <div class="row-amount red">−₹850<small>You gave</small></div>
+          </article>
+          <article class="normal-row">
+            <div class="date"><strong>14</strong> OCT</div>
+            <div class="row-copy">
+              <div class="row-title">Cash received</div>
+              <div class="row-meta">12:05 PM · Cash</div>
+            </div>
+            <div class="row-amount green">+₹500<small>You got</small></div>
+          </article>
+          <article class="normal-row">
+            <div class="date"><strong>12</strong> OCT</div>
+            <div class="row-copy">
+              <div class="row-title">Advance received</div>
+              <div class="row-meta">4:20 PM · UPI</div>
+            </div>
+            <div class="row-amount green">+₹1,500<small>You got</small></div>
+          </article>
+        </div>
+      </section>
+
+      <div class="month-heading" style="margin-top: 20px">NOVEMBER 2026</div>
+      <section class="month-group" aria-label="November transactions">
+        <article class="special-card" id="recurring-card">
+          <div class="special-main" role="button" tabindex="0" aria-expanded="false" aria-controls="recurring-details">
+            <div class="special-head">
+              <div class="special-icon">↻</div>
+              <div class="special-info">
+                <div class="special-title">Shop rent</div>
+                <div class="special-subtitle">Recurring · Monthly</div>
+              </div>
+              <div class="principal red">₹3,000<small>You gave</small></div>
+            </div>
+            <div class="metrics">
+              <div class="metric">
+                <div class="metric-label">OUTSTANDING</div>
+                <div class="metric-value due-interest">₹3,000</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">RECORDS</div>
+                <div class="metric-value">4 payments</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">NEXT</div>
+                <div class="metric-value">01 Nov</div>
+              </div>
+            </div>
+          </div>
+          <div class="status">
+            <span>✓</span><span>UPCOMING</span><span class="fill"></span>
+            <button type="button">Review</button>
+            <span class="chevron">⌄</span>
+          </div>
+          <div class="details" id="recurring-details">
+            <div class="details-heading">Next scheduled</div>
+            <div class="record">
+              <div class="record-copy">
+                <div class="record-title">November shop rent</div>
+                <div class="record-date">Due 01 Nov 2026 · Next scheduled</div>
+              </div>
+              <div class="record-value">₹3,000</div>
+            </div>
+            <div class="details-heading">Recurring due</div>
+            <div class="record">
+              <div class="record-copy">
+                <div class="record-title">October shop rent</div>
+                <div class="record-date">Due 01 Oct 2026</div>
+              </div>
+              <div class="record-value">₹3,000</div>
+              <span class="record-action">Mark paid</span>
+            </div>
+            <div class="details-heading">Paid history · ₹3,000</div>
+            <div class="record">
+              <div class="record-copy">
+                <div class="record-title">September shop rent</div>
+                <div class="record-date">01 Sep 2026</div>
+              </div>
+              <div><span class="record-value paid">₹3,000</span><span class="paid-badge">PAID</span></div>
+            </div>
+          </div>
+        </article>
+      </section>
+      <p class="caption">Consecutive regular transactions share a quiet group. Interest and recurring schedules remain their own cards in the same date-ordered ledger.</p>
+    </main>
+
+    <footer class="bottom-bar">
+      <button class="gave">− You gave</button>
+      <button class="got">+ Record payment</button>
+    </footer>
+  </div>
+  <script>
+    document.querySelectorAll('.special-main, .status .chevron').forEach((control) => {
+      control.addEventListener('click', () => {
+        const card = control.closest('.special-card');
+        const expanded = card.classList.toggle('open');
+        card.querySelector('.special-main').setAttribute('aria-expanded', expanded);
+      });
+      if (control.classList.contains('special-main')) {
+        control.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            control.click();
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>
