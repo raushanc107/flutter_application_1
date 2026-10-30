@@ -41,7 +41,7 @@ class BackupService {
     return XFile.fromData(
       Uint8List.fromList(bytes),
       mimeType: 'application/json',
-      name: _createBackupFilename(),
+      name: createBackupFilename(),
     );
   }
 
@@ -57,7 +57,7 @@ class BackupService {
       final anchor = html.document.createElement('a') as html.AnchorElement
         ..href = url
         ..style.display = 'none'
-        ..download = _createBackupFilename();
+        ..download = createBackupFilename();
       html.document.body!.children.add(anchor);
       anchor.click();
       html.document.body!.children.remove(anchor);
@@ -71,7 +71,7 @@ class BackupService {
     }
   }
 
-  String _createBackupFilename() =>
+  String createBackupFilename() =>
       'khatabook_backup_${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
 
   /// Helper to parse DateTime from either String (ISO8601) or int (milliseconds since epoch)

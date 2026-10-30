@@ -179,7 +179,10 @@ class _RestoreBackupDialogState extends State<RestoreBackupDialog> {
             itemBuilder: (context, index) {
               final backup = _backups[index];
               final date =
-                  backup.modifiedTime ?? backup.createdTime ?? DateTime.now();
+                  (backup.modifiedTime ??
+                          backup.createdTime ??
+                          DateTime.now())
+                      .toLocal();
               final sizeMb =
                   ((int.tryParse(backup.size ?? '') ?? 0) / 1024 / 1024)
                       .toStringAsFixed(2);

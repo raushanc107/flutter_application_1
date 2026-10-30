@@ -14,6 +14,10 @@ class GoogleDriveStorageService {
     String description,
     String filename,
   ) async {
+    if (filename.trim().isEmpty) {
+      throw ArgumentError.value(filename, 'filename', 'Must not be empty');
+    }
+
     final driveApi = await _authService.getDriveApi();
     if (driveApi == null) {
       throw StateError('Google Drive is not authenticated');
@@ -29,7 +33,11 @@ class GoogleDriveStorageService {
       ..mimeType = 'application/json';
 
     try {
-      final result = await driveApi.files.create(driveFile, uploadMedia: media);
+      final result = await driveApi.files.create(
+        driveFile,
+        uploadMedia: media,
+        $fields: 'id,name',
+      );
       debugPrint(
         'GoogleDrive: Uploaded backup successfully. File: ${result.name} (ID: ${result.id})',
       );
@@ -56,7 +64,7 @@ class GoogleDriveStorageService {
         q: "trashed = false",
         spaces: 'appDataFolder',
         $fields:
-            'files(id, name, createdTime, modifiedTime, size, description)',
+            'files(id, name, mimeType, createdTime, modifiedTime, size, description)',
         orderBy: 'modifiedTime desc',
       );
 
@@ -68,13 +76,24 @@ class GoogleDriveStorageService {
         debugPrint('GoogleDrive File: ${f.name} (ID: ${f.id})');
       }
 
-      return allFiles
-          .where((f) => f.name?.contains('khatabook_backup') ?? false)
-          .toList();
+      return allFiles.where(isBackupFile).toList();
     } catch (e) {
       debugPrint('GoogleDrive Error listing backups: $e');
       rethrow;
     }
+  }
+
+  @visibleForTesting
+  static bool isBackupFile(drive.File file) {
+    if (file.name?.startsWith('khatabook_backup_') ?? false) {
+      return true;
+    }
+
+    final description = file.description?.toLowerCase() ?? '';
+    final isBackupDescription =
+        description.startsWith('khatabook backup') ||
+        description.startsWith('auto backup (background)');
+    return file.mimeType == 'application/json' && isBackupDescription;
   }
 
   /// Download a backup file by ID

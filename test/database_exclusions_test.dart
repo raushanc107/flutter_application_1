@@ -1,8 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:khatabook/core/database/database.dart';
 import 'package:khatabook/core/services/backup_service.dart';
+import 'package:khatabook/core/services/google_drive_storage_service.dart';
 
 void main() {
   late AppDatabase database;
@@ -13,6 +15,35 @@ void main() {
 
   tearDown(() async {
     await database.close();
+  });
+
+  test('backup filenames are explicit for Drive uploads', () {
+    final filename = BackupService(database).createBackupFilename();
+    expect(filename, startsWith('khatabook_backup_'));
+    expect(filename, endsWith('.json'));
+  });
+
+  test('restore list recognizes legacy unnamed mobile backups', () {
+    expect(
+      GoogleDriveStorageService.isBackupFile(
+        drive.File(
+          name: 'Untitled',
+          mimeType: 'application/json',
+          description: 'Khatabook Backup - daily - 2026-10-30',
+        ),
+      ),
+      isTrue,
+    );
+    expect(
+      GoogleDriveStorageService.isBackupFile(
+        drive.File(
+          name: 'notes.json',
+          mimeType: 'application/json',
+          description: 'Personal notes',
+        ),
+      ),
+      isFalse,
+    );
   });
 
   test('exclusions are applied to balances and report aggregates', () async {

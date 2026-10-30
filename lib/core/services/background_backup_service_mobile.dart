@@ -54,7 +54,7 @@ void callbackDispatcher() {
         final bytes = await xFile.readAsBytes();
         final stream = Stream.value(bytes);
         final length = bytes.length;
-        final filename = xFile.name;
+        final filename = backupService.createBackupFilename();
 
         // 5. Upload
         final timestamp = DateTime.now();

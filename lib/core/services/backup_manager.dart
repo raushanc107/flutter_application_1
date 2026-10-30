@@ -198,7 +198,7 @@ class BackupManager extends ChangeNotifier {
         final bytes = await xFile.readAsBytes();
         stream = Stream.value(bytes);
         length = bytes.length;
-        filename = xFile.name;
+        filename = _backupService.createBackupFilename();
       } else {
         // Mobile: Use file
         final xFile = await _backupService.createBackupXFile();
@@ -207,7 +207,7 @@ class BackupManager extends ChangeNotifier {
           bytes,
         ); // Or openRead if we had a File object, but XFile readAsBytes is fine for now
         length = bytes.length;
-        filename = xFile.name;
+        filename = _backupService.createBackupFilename();
         // Optimization: For large files on mobile, we might want to use openRead from File (dart:io) but we removed it from Service.
         // XFile doesn't have openRead returning Stream<List<int>> directly compatible easily without conversion or full read.
         // For now, reading as bytes is safe for reasonable backup sizes.
