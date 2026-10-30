@@ -51,6 +51,19 @@
 	<array>
 		<string>whatsapp</string>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.khatabook.backup.periodic</string>
+	</array>
+	<key>GIDClientID</key>
+	<string>583834828571-tqet2jn4gmtn2nkfchcl5tmi7ale6a52.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>583834828571-ls1rjlu9e9k21r68mv6ckk4iucfvae8i.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

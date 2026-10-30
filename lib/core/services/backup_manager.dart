@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -54,6 +56,41 @@ class BackupManager extends ChangeNotifier {
     _lastBackupStatus = prefs.getString(_keyLastBackupStatus);
     await _scheduleBackgroundTask();
     notifyListeners();
+    unawaited(checkAndPerformOverdueBackup());
+  }
+
+  /// Checks if scheduled backup was missed (e.g. app was closed/force-quit for days)
+  /// and performs a catch-up backup immediately in the background.
+  Future<void> checkAndPerformOverdueBackup() async {
+    if (!_autoBackupEnabled) return;
+
+    if (_lastBackupTime == null) {
+      debugPrint("BackupManager: First auto-backup check on startup");
+      await performBackup(isAuto: true);
+      return;
+    }
+
+    final now = DateTime.now();
+    Duration overdueThreshold;
+    switch (_frequency) {
+      case 'weekly':
+        overdueThreshold = const Duration(days: 7);
+        break;
+      case 'monthly':
+        overdueThreshold = const Duration(days: 30);
+        break;
+      case 'daily':
+      default:
+        overdueThreshold = const Duration(days: 1);
+        break;
+    }
+
+    if (now.difference(_lastBackupTime!) >= overdueThreshold) {
+      debugPrint(
+        "BackupManager: Backup is overdue (${now.difference(_lastBackupTime!).inHours} hours since last). Running automatic catch-up backup.",
+      );
+      await performBackup(isAuto: true);
+    }
   }
 
   Future<void> updateSettings({
@@ -120,24 +157,20 @@ class BackupManager extends ChangeNotifier {
   /// Trigger a backup (Manual or Auto)
   /// Returns null if successful, or error message string
   Future<String?> performBackup({bool isAuto = false}) async {
-    if (_isBackingUp) return null; // Already running
+    if (_isBackingUp) return 'A backup is already in progress';
 
     // Connectivity Check for Auto Backup
-    if (isAuto && _wifiOnly) {
-      final connectivityResult = await Connectivity().checkConnectivity();
-      if (!connectivityResult.contains(ConnectivityResult.wifi)) {
-        debugPrint('Skipping auto-backup: Not on WiFi');
-        return 'Not on WiFi';
-      }
-    }
-
-    // Auth Check
-    if (!_authService.isSignedIn) {
-      // Try to silently sign in
-      final account = await _authService
-          .signIn(); // This might prompt UI, careful for background
-      if (account == null) {
-        return 'Not signed in to Google Drive';
+    if (isAuto && _wifiOnly && !kIsWeb) {
+      try {
+        final connectivityResult = await Connectivity().checkConnectivity();
+        if (!connectivityResult.contains(ConnectivityResult.wifi)) {
+          debugPrint('Skipping auto-backup: Not on WiFi');
+          return 'Not on WiFi';
+        }
+      } catch (e) {
+        final error = 'Could not check network connectivity: $e';
+        await _recordBackupFailure(error);
+        return error;
       }
     }
 
@@ -145,17 +178,27 @@ class BackupManager extends ChangeNotifier {
     notifyListeners();
 
     try {
+      if (!_authService.isSignedIn) {
+        final account = isAuto
+            ? await _authService.signInSilently()
+            : await _authService.signIn();
+        if (account == null) {
+          const error = 'Not signed in to Google Drive';
+          await _recordBackupFailure(error);
+          return error;
+        }
+      }
+
       Stream<List<int>> stream;
       int length;
       String filename;
 
       if (kIsWeb) {
-        // Web: Use bytes
-        final bytes = await _backupService.createBackupBytes();
+        final xFile = await _backupService.createBackupXFile();
+        final bytes = await xFile.readAsBytes();
         stream = Stream.value(bytes);
         length = bytes.length;
-        final date = DateTime.now().toIso8601String().split('T')[0];
-        filename = 'khatabook_backup_$date.json';
+        filename = xFile.name;
       } else {
         // Mobile: Use file
         final xFile = await _backupService.createBackupXFile();
@@ -172,7 +215,7 @@ class BackupManager extends ChangeNotifier {
 
       // 2. Upload to Drive
       final timestamp = DateTime.now();
-      final description = 'Khatabook Backup - ${_frequency} - $timestamp';
+      final description = 'Khatabook Backup - $_frequency - $timestamp';
       final fileId = await _storageService.uploadBackup(
         stream,
         length,
@@ -180,18 +223,14 @@ class BackupManager extends ChangeNotifier {
         filename,
       );
 
-      if (fileId != null) {
-        // Success
-        await _recordBackupSuccess(timestamp);
-
-        // 3. Cleanup Old Backups (keep last 5)
+      debugPrint('BackupManager: Backup uploaded with ID $fileId');
+      await _recordBackupSuccess(timestamp);
+      try {
         await _storageService.cleanupOldBackups(5);
-
-        return null; // Success
-      } else {
-        await _recordBackupFailure('Upload failed');
-        return 'Upload failed';
+      } catch (e) {
+        debugPrint('BackupManager: Could not clean up old backups: $e');
       }
+      return null;
     } catch (e) {
       final error = e.toString();
       await _recordBackupFailure(error);
@@ -212,7 +251,9 @@ class BackupManager extends ChangeNotifier {
 
   Future<void> _recordBackupFailure(String error) async {
     final prefs = await SharedPreferences.getInstance();
-    _lastBackupStatus = 'error: $error';
-    await prefs.setString(_keyLastBackupStatus, _lastBackupStatus!);
+    final status = 'error: $error';
+    _lastBackupStatus = status;
+    await prefs.setString(_keyLastBackupStatus, status);
+    notifyListeners();
   }
 }

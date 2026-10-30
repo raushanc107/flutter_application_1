@@ -7,16 +7,17 @@ class GoogleDriveStorageService {
 
   GoogleDriveStorageService(this._authService);
 
-  /// Upload a file to the App Data folder
-  /// Returns the file ID on success,  /// Upload a stream to Drive
-  Future<String?> uploadBackup(
+  /// Upload a backup to the App Data folder and return its Drive file ID.
+  Future<String> uploadBackup(
     Stream<List<int>> stream,
     int length,
     String description,
     String filename,
   ) async {
     final driveApi = await _authService.getDriveApi();
-    if (driveApi == null) return null;
+    if (driveApi == null) {
+      throw StateError('Google Drive is not authenticated');
+    }
 
     final media = drive.Media(stream, length);
 
@@ -29,36 +30,59 @@ class GoogleDriveStorageService {
 
     try {
       final result = await driveApi.files.create(driveFile, uploadMedia: media);
-      return result.id;
+      debugPrint(
+        'GoogleDrive: Uploaded backup successfully. File: ${result.name} (ID: ${result.id})',
+      );
+      final fileId = result.id;
+      if (fileId == null) {
+        throw StateError('Google Drive did not return an ID for the backup');
+      }
+      return fileId;
     } catch (e) {
-      debugPrint('Error uploading backup: $e');
-      return null;
+      debugPrint('GoogleDrive Error uploading backup: $e');
+      rethrow;
     }
   }
 
   /// List all backup files in App Data folder
   Future<List<drive.File>> listBackups() async {
     final driveApi = await _authService.getDriveApi();
-    if (driveApi == null) return [];
+    if (driveApi == null) {
+      throw StateError('Google Drive is not authenticated');
+    }
 
     try {
       final fileList = await driveApi.files.list(
-        q: "name contains 'khatabook_backup' and 'appDataFolder' in parents and trashed = false",
+        q: "trashed = false",
         spaces: 'appDataFolder',
-        $fields: 'files(id, name, createdTime, size, description)',
-        orderBy: 'createdTime desc',
+        $fields:
+            'files(id, name, createdTime, modifiedTime, size, description)',
+        orderBy: 'modifiedTime desc',
       );
-      return fileList.files ?? [];
+
+      final allFiles = fileList.files ?? [];
+      debugPrint(
+        'GoogleDrive: Found ${allFiles.length} files in appDataFolder',
+      );
+      for (var f in allFiles) {
+        debugPrint('GoogleDrive File: ${f.name} (ID: ${f.id})');
+      }
+
+      return allFiles
+          .where((f) => f.name?.contains('khatabook_backup') ?? false)
+          .toList();
     } catch (e) {
-      debugPrint('Error listing backups: $e');
-      return [];
+      debugPrint('GoogleDrive Error listing backups: $e');
+      rethrow;
     }
   }
 
   /// Download a backup file by ID
-  Future<List<int>?> downloadBackup(String fileId) async {
+  Future<List<int>> downloadBackup(String fileId) async {
     final driveApi = await _authService.getDriveApi();
-    if (driveApi == null) return null;
+    if (driveApi == null) {
+      throw StateError('Google Drive is not authenticated');
+    }
 
     try {
       final media =
@@ -75,7 +99,7 @@ class GoogleDriveStorageService {
       return dataStore;
     } catch (e) {
       debugPrint('Error downloading backup: $e');
-      return null;
+      rethrow;
     }
   }
 
@@ -86,7 +110,9 @@ class GoogleDriveStorageService {
 
     final backupsToDelete = backups.sublist(keepCount);
     final driveApi = await _authService.getDriveApi();
-    if (driveApi == null) return;
+    if (driveApi == null) {
+      throw StateError('Google Drive is not authenticated');
+    }
 
     for (var file in backupsToDelete) {
       if (file.id != null) {

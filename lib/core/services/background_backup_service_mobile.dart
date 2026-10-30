@@ -38,7 +38,8 @@ void callbackDispatcher() {
         await authService.init();
 
         // 3. Check Auth Status
-        final account = await authService.signIn(); // Try silent sign-in
+        final account = await authService
+            .signInSilently(); // Silent sign-in for background
         if (account == null) {
           debugPrint("Background backup failed: Not signed in");
           await database.close();
@@ -65,19 +66,16 @@ void callbackDispatcher() {
           filename,
         );
 
-        if (fileId != null) {
-          debugPrint("Background backup successful: $fileId");
-          await prefs.setString('last_backup_status', 'success');
-          await prefs.setInt(
-            'last_backup_time',
-            timestamp.millisecondsSinceEpoch,
-          );
-
-          // Cleanup
+        debugPrint("Background backup successful: $fileId");
+        await prefs.setString('last_backup_status', 'success');
+        await prefs.setInt(
+          'last_backup_time',
+          timestamp.millisecondsSinceEpoch,
+        );
+        try {
           await storageService.cleanupOldBackups(5);
-        } else {
-          debugPrint("Background backup failed during upload");
-          await prefs.setString('last_backup_status', 'error: Upload failed');
+        } catch (e) {
+          debugPrint("Could not clean up old backups: $e");
         }
 
         await database.close();

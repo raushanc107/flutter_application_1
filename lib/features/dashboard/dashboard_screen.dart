@@ -185,6 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         double totalGive = 0;
 
         for (final customer in snapshot.data!) {
+          if (customer.isExcluded) continue; // Excluded from main summary
           if (customer.currentBalance > 0) {
             totalGet += customer.currentBalance;
           } else {
@@ -662,16 +663,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          DateFormat(
-                            'dd MMM yyyy',
-                          ).format(customer.lastUpdated),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF6B7280),
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              DateFormat(
+                                'dd MMM yyyy',
+                              ).format(customer.lastUpdated),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF6B7280),
+                              ),
+                            ),
+                            if (customer.isExcluded) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFFF59E0B,
+                                  ).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: const Color(
+                                      0xFFF59E0B,
+                                    ).withValues(alpha: 0.5),
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  AppTranslations.get(
+                                    Provider.of<LanguageProvider>(
+                                      context,
+                                    ).locale.languageCode,
+                                    'excluded_badge',
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFD97706),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -805,6 +844,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 showDialog(
                   context: context,
                   builder: (context) => AddCustomerDialog(customer: customer),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                customer.isExcluded
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+                color: const Color(0xFFF59E0B),
+              ),
+              title: Text(
+                AppTranslations.get(
+                  Provider.of<LanguageProvider>(context).locale.languageCode,
+                  customer.isExcluded
+                      ? 'include_in_summary'
+                      : 'exclude_from_summary',
+                ),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await database.updateCustomer(
+                  customer.copyWith(
+                    isExcluded: !customer.isExcluded,
+                    lastUpdated: DateTime.now(),
+                  ),
                 );
               },
             ),

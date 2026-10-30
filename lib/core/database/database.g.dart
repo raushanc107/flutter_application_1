@@ -62,6 +62,21 @@ class $CustomersTable extends Customers
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _isExcludedMeta = const VerificationMeta(
+    'isExcluded',
+  );
+  @override
+  late final GeneratedColumn<bool> isExcluded = GeneratedColumn<bool>(
+    'is_excluded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_excluded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -69,6 +84,7 @@ class $CustomersTable extends Customers
     phoneNumber,
     currentBalance,
     lastUpdated,
+    isExcluded,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -124,6 +140,12 @@ class $CustomersTable extends Customers
         ),
       );
     }
+    if (data.containsKey('is_excluded')) {
+      context.handle(
+        _isExcludedMeta,
+        isExcluded.isAcceptableOrUnknown(data['is_excluded']!, _isExcludedMeta),
+      );
+    }
     return context;
   }
 
@@ -153,6 +175,10 @@ class $CustomersTable extends Customers
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_updated'],
       )!,
+      isExcluded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_excluded'],
+      )!,
     );
   }
 
@@ -168,12 +194,14 @@ class Customer extends DataClass implements Insertable<Customer> {
   final String phoneNumber;
   final double currentBalance;
   final DateTime lastUpdated;
+  final bool isExcluded;
   const Customer({
     required this.id,
     required this.name,
     required this.phoneNumber,
     required this.currentBalance,
     required this.lastUpdated,
+    required this.isExcluded,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -183,6 +211,7 @@ class Customer extends DataClass implements Insertable<Customer> {
     map['phone_number'] = Variable<String>(phoneNumber);
     map['current_balance'] = Variable<double>(currentBalance);
     map['last_updated'] = Variable<DateTime>(lastUpdated);
+    map['is_excluded'] = Variable<bool>(isExcluded);
     return map;
   }
 
@@ -193,6 +222,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       phoneNumber: Value(phoneNumber),
       currentBalance: Value(currentBalance),
       lastUpdated: Value(lastUpdated),
+      isExcluded: Value(isExcluded),
     );
   }
 
@@ -207,6 +237,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       phoneNumber: serializer.fromJson<String>(json['phoneNumber']),
       currentBalance: serializer.fromJson<double>(json['currentBalance']),
       lastUpdated: serializer.fromJson<DateTime>(json['lastUpdated']),
+      isExcluded: serializer.fromJson<bool>(json['isExcluded']),
     );
   }
   @override
@@ -218,6 +249,7 @@ class Customer extends DataClass implements Insertable<Customer> {
       'phoneNumber': serializer.toJson<String>(phoneNumber),
       'currentBalance': serializer.toJson<double>(currentBalance),
       'lastUpdated': serializer.toJson<DateTime>(lastUpdated),
+      'isExcluded': serializer.toJson<bool>(isExcluded),
     };
   }
 
@@ -227,12 +259,14 @@ class Customer extends DataClass implements Insertable<Customer> {
     String? phoneNumber,
     double? currentBalance,
     DateTime? lastUpdated,
+    bool? isExcluded,
   }) => Customer(
     id: id ?? this.id,
     name: name ?? this.name,
     phoneNumber: phoneNumber ?? this.phoneNumber,
     currentBalance: currentBalance ?? this.currentBalance,
     lastUpdated: lastUpdated ?? this.lastUpdated,
+    isExcluded: isExcluded ?? this.isExcluded,
   );
   Customer copyWithCompanion(CustomersCompanion data) {
     return Customer(
@@ -247,6 +281,9 @@ class Customer extends DataClass implements Insertable<Customer> {
       lastUpdated: data.lastUpdated.present
           ? data.lastUpdated.value
           : this.lastUpdated,
+      isExcluded: data.isExcluded.present
+          ? data.isExcluded.value
+          : this.isExcluded,
     );
   }
 
@@ -257,14 +294,21 @@ class Customer extends DataClass implements Insertable<Customer> {
           ..write('name: $name, ')
           ..write('phoneNumber: $phoneNumber, ')
           ..write('currentBalance: $currentBalance, ')
-          ..write('lastUpdated: $lastUpdated')
+          ..write('lastUpdated: $lastUpdated, ')
+          ..write('isExcluded: $isExcluded')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, phoneNumber, currentBalance, lastUpdated);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    phoneNumber,
+    currentBalance,
+    lastUpdated,
+    isExcluded,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -273,7 +317,8 @@ class Customer extends DataClass implements Insertable<Customer> {
           other.name == this.name &&
           other.phoneNumber == this.phoneNumber &&
           other.currentBalance == this.currentBalance &&
-          other.lastUpdated == this.lastUpdated);
+          other.lastUpdated == this.lastUpdated &&
+          other.isExcluded == this.isExcluded);
 }
 
 class CustomersCompanion extends UpdateCompanion<Customer> {
@@ -282,6 +327,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
   final Value<String> phoneNumber;
   final Value<double> currentBalance;
   final Value<DateTime> lastUpdated;
+  final Value<bool> isExcluded;
   final Value<int> rowid;
   const CustomersCompanion({
     this.id = const Value.absent(),
@@ -289,6 +335,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     this.phoneNumber = const Value.absent(),
     this.currentBalance = const Value.absent(),
     this.lastUpdated = const Value.absent(),
+    this.isExcluded = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CustomersCompanion.insert({
@@ -297,6 +344,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     required String phoneNumber,
     this.currentBalance = const Value.absent(),
     this.lastUpdated = const Value.absent(),
+    this.isExcluded = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -307,6 +355,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Expression<String>? phoneNumber,
     Expression<double>? currentBalance,
     Expression<DateTime>? lastUpdated,
+    Expression<bool>? isExcluded,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -315,6 +364,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       if (phoneNumber != null) 'phone_number': phoneNumber,
       if (currentBalance != null) 'current_balance': currentBalance,
       if (lastUpdated != null) 'last_updated': lastUpdated,
+      if (isExcluded != null) 'is_excluded': isExcluded,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -325,6 +375,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     Value<String>? phoneNumber,
     Value<double>? currentBalance,
     Value<DateTime>? lastUpdated,
+    Value<bool>? isExcluded,
     Value<int>? rowid,
   }) {
     return CustomersCompanion(
@@ -333,6 +384,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       currentBalance: currentBalance ?? this.currentBalance,
       lastUpdated: lastUpdated ?? this.lastUpdated,
+      isExcluded: isExcluded ?? this.isExcluded,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -355,6 +407,9 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
     if (lastUpdated.present) {
       map['last_updated'] = Variable<DateTime>(lastUpdated.value);
     }
+    if (isExcluded.present) {
+      map['is_excluded'] = Variable<bool>(isExcluded.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -369,6 +424,7 @@ class CustomersCompanion extends UpdateCompanion<Customer> {
           ..write('phoneNumber: $phoneNumber, ')
           ..write('currentBalance: $currentBalance, ')
           ..write('lastUpdated: $lastUpdated, ')
+          ..write('isExcluded: $isExcluded, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -542,6 +598,21 @@ class $TransactionsTable extends Transactions
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _isExcludedMeta = const VerificationMeta(
+    'isExcluded',
+  );
+  @override
+  late final GeneratedColumn<bool> isExcluded = GeneratedColumn<bool>(
+    'is_excluded',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_excluded" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -558,6 +629,7 @@ class $TransactionsTable extends Transactions
     isInterestEntry,
     isRecurringParent,
     isPaid,
+    isExcluded,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -681,6 +753,12 @@ class $TransactionsTable extends Transactions
         isPaid.isAcceptableOrUnknown(data['is_paid']!, _isPaidMeta),
       );
     }
+    if (data.containsKey('is_excluded')) {
+      context.handle(
+        _isExcludedMeta,
+        isExcluded.isAcceptableOrUnknown(data['is_excluded']!, _isExcludedMeta),
+      );
+    }
     return context;
   }
 
@@ -746,6 +824,10 @@ class $TransactionsTable extends Transactions
         DriftSqlType.bool,
         data['${effectivePrefix}is_paid'],
       )!,
+      isExcluded: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_excluded'],
+      )!,
     );
   }
 
@@ -770,6 +852,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final bool? isInterestEntry;
   final bool isRecurringParent;
   final bool isPaid;
+  final bool isExcluded;
   const Transaction({
     required this.id,
     required this.customerId,
@@ -785,6 +868,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     this.isInterestEntry,
     required this.isRecurringParent,
     required this.isPaid,
+    required this.isExcluded,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -819,6 +903,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     }
     map['is_recurring_parent'] = Variable<bool>(isRecurringParent);
     map['is_paid'] = Variable<bool>(isPaid);
+    map['is_excluded'] = Variable<bool>(isExcluded);
     return map;
   }
 
@@ -853,6 +938,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           : Value(isInterestEntry),
       isRecurringParent: Value(isRecurringParent),
       isPaid: Value(isPaid),
+      isExcluded: Value(isExcluded),
     );
   }
 
@@ -880,6 +966,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       isInterestEntry: serializer.fromJson<bool?>(json['isInterestEntry']),
       isRecurringParent: serializer.fromJson<bool>(json['isRecurringParent']),
       isPaid: serializer.fromJson<bool>(json['isPaid']),
+      isExcluded: serializer.fromJson<bool>(json['isExcluded']),
     );
   }
   @override
@@ -902,6 +989,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'isInterestEntry': serializer.toJson<bool?>(isInterestEntry),
       'isRecurringParent': serializer.toJson<bool>(isRecurringParent),
       'isPaid': serializer.toJson<bool>(isPaid),
+      'isExcluded': serializer.toJson<bool>(isExcluded),
     };
   }
 
@@ -920,6 +1008,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     Value<bool?> isInterestEntry = const Value.absent(),
     bool? isRecurringParent,
     bool? isPaid,
+    bool? isExcluded,
   }) => Transaction(
     id: id ?? this.id,
     customerId: customerId ?? this.customerId,
@@ -943,6 +1032,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         : this.isInterestEntry,
     isRecurringParent: isRecurringParent ?? this.isRecurringParent,
     isPaid: isPaid ?? this.isPaid,
+    isExcluded: isExcluded ?? this.isExcluded,
   );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -976,6 +1066,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ? data.isRecurringParent.value
           : this.isRecurringParent,
       isPaid: data.isPaid.present ? data.isPaid.value : this.isPaid,
+      isExcluded: data.isExcluded.present
+          ? data.isExcluded.value
+          : this.isExcluded,
     );
   }
 
@@ -995,7 +1088,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('parentTransactionId: $parentTransactionId, ')
           ..write('isInterestEntry: $isInterestEntry, ')
           ..write('isRecurringParent: $isRecurringParent, ')
-          ..write('isPaid: $isPaid')
+          ..write('isPaid: $isPaid, ')
+          ..write('isExcluded: $isExcluded')
           ..write(')'))
         .toString();
   }
@@ -1016,6 +1110,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     isInterestEntry,
     isRecurringParent,
     isPaid,
+    isExcluded,
   );
   @override
   bool operator ==(Object other) =>
@@ -1034,7 +1129,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.parentTransactionId == this.parentTransactionId &&
           other.isInterestEntry == this.isInterestEntry &&
           other.isRecurringParent == this.isRecurringParent &&
-          other.isPaid == this.isPaid);
+          other.isPaid == this.isPaid &&
+          other.isExcluded == this.isExcluded);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -1052,6 +1148,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<bool?> isInterestEntry;
   final Value<bool> isRecurringParent;
   final Value<bool> isPaid;
+  final Value<bool> isExcluded;
   final Value<int> rowid;
   const TransactionsCompanion({
     this.id = const Value.absent(),
@@ -1068,6 +1165,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.isInterestEntry = const Value.absent(),
     this.isRecurringParent = const Value.absent(),
     this.isPaid = const Value.absent(),
+    this.isExcluded = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TransactionsCompanion.insert({
@@ -1085,6 +1183,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.isInterestEntry = const Value.absent(),
     this.isRecurringParent = const Value.absent(),
     this.isPaid = const Value.absent(),
+    this.isExcluded = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        customerId = Value(customerId),
@@ -1105,6 +1204,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<bool>? isInterestEntry,
     Expression<bool>? isRecurringParent,
     Expression<bool>? isPaid,
+    Expression<bool>? isExcluded,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1124,6 +1224,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (isInterestEntry != null) 'is_interest_entry': isInterestEntry,
       if (isRecurringParent != null) 'is_recurring_parent': isRecurringParent,
       if (isPaid != null) 'is_paid': isPaid,
+      if (isExcluded != null) 'is_excluded': isExcluded,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1143,6 +1244,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<bool?>? isInterestEntry,
     Value<bool>? isRecurringParent,
     Value<bool>? isPaid,
+    Value<bool>? isExcluded,
     Value<int>? rowid,
   }) {
     return TransactionsCompanion(
@@ -1161,6 +1263,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       isInterestEntry: isInterestEntry ?? this.isInterestEntry,
       isRecurringParent: isRecurringParent ?? this.isRecurringParent,
       isPaid: isPaid ?? this.isPaid,
+      isExcluded: isExcluded ?? this.isExcluded,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1214,6 +1317,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (isPaid.present) {
       map['is_paid'] = Variable<bool>(isPaid.value);
     }
+    if (isExcluded.present) {
+      map['is_excluded'] = Variable<bool>(isExcluded.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1237,6 +1343,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('isInterestEntry: $isInterestEntry, ')
           ..write('isRecurringParent: $isRecurringParent, ')
           ..write('isPaid: $isPaid, ')
+          ..write('isExcluded: $isExcluded, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1905,6 +2012,7 @@ typedef $$CustomersTableCreateCompanionBuilder =
       required String phoneNumber,
       Value<double> currentBalance,
       Value<DateTime> lastUpdated,
+      Value<bool> isExcluded,
       Value<int> rowid,
     });
 typedef $$CustomersTableUpdateCompanionBuilder =
@@ -1914,6 +2022,7 @@ typedef $$CustomersTableUpdateCompanionBuilder =
       Value<String> phoneNumber,
       Value<double> currentBalance,
       Value<DateTime> lastUpdated,
+      Value<bool> isExcluded,
       Value<int> rowid,
     });
 
@@ -2005,6 +2114,11 @@ class $$CustomersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get isExcluded => $composableBuilder(
+    column: $table.isExcluded,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> transactionsRefs(
     Expression<bool> Function($$TransactionsTableFilterComposer f) f,
   ) {
@@ -2090,6 +2204,11 @@ class $$CustomersTableOrderingComposer
     column: $table.lastUpdated,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isExcluded => $composableBuilder(
+    column: $table.isExcluded,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CustomersTableAnnotationComposer
@@ -2119,6 +2238,11 @@ class $$CustomersTableAnnotationComposer
 
   GeneratedColumn<DateTime> get lastUpdated => $composableBuilder(
     column: $table.lastUpdated,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isExcluded => $composableBuilder(
+    column: $table.isExcluded,
     builder: (column) => column,
   );
 
@@ -2210,6 +2334,7 @@ class $$CustomersTableTableManager
                 Value<String> phoneNumber = const Value.absent(),
                 Value<double> currentBalance = const Value.absent(),
                 Value<DateTime> lastUpdated = const Value.absent(),
+                Value<bool> isExcluded = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CustomersCompanion(
                 id: id,
@@ -2217,6 +2342,7 @@ class $$CustomersTableTableManager
                 phoneNumber: phoneNumber,
                 currentBalance: currentBalance,
                 lastUpdated: lastUpdated,
+                isExcluded: isExcluded,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2226,6 +2352,7 @@ class $$CustomersTableTableManager
                 required String phoneNumber,
                 Value<double> currentBalance = const Value.absent(),
                 Value<DateTime> lastUpdated = const Value.absent(),
+                Value<bool> isExcluded = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CustomersCompanion.insert(
                 id: id,
@@ -2233,6 +2360,7 @@ class $$CustomersTableTableManager
                 phoneNumber: phoneNumber,
                 currentBalance: currentBalance,
                 lastUpdated: lastUpdated,
+                isExcluded: isExcluded,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -2337,6 +2465,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       Value<bool?> isInterestEntry,
       Value<bool> isRecurringParent,
       Value<bool> isPaid,
+      Value<bool> isExcluded,
       Value<int> rowid,
     });
 typedef $$TransactionsTableUpdateCompanionBuilder =
@@ -2355,6 +2484,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<bool?> isInterestEntry,
       Value<bool> isRecurringParent,
       Value<bool> isPaid,
+      Value<bool> isExcluded,
       Value<int> rowid,
     });
 
@@ -2505,6 +2635,11 @@ class $$TransactionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get isExcluded => $composableBuilder(
+    column: $table.isExcluded,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$CustomersTableFilterComposer get customerId {
     final $$CustomersTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -2648,6 +2783,11 @@ class $$TransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isExcluded => $composableBuilder(
+    column: $table.isExcluded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$CustomersTableOrderingComposer get customerId {
     final $$CustomersTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -2752,6 +2892,11 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<bool> get isPaid =>
       $composableBuilder(column: $table.isPaid, builder: (column) => column);
+
+  GeneratedColumn<bool> get isExcluded => $composableBuilder(
+    column: $table.isExcluded,
+    builder: (column) => column,
+  );
 
   $$CustomersTableAnnotationComposer get customerId {
     final $$CustomersTableAnnotationComposer composer = $composerBuilder(
@@ -2873,6 +3018,7 @@ class $$TransactionsTableTableManager
                 Value<bool?> isInterestEntry = const Value.absent(),
                 Value<bool> isRecurringParent = const Value.absent(),
                 Value<bool> isPaid = const Value.absent(),
+                Value<bool> isExcluded = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionsCompanion(
                 id: id,
@@ -2889,6 +3035,7 @@ class $$TransactionsTableTableManager
                 isInterestEntry: isInterestEntry,
                 isRecurringParent: isRecurringParent,
                 isPaid: isPaid,
+                isExcluded: isExcluded,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2908,6 +3055,7 @@ class $$TransactionsTableTableManager
                 Value<bool?> isInterestEntry = const Value.absent(),
                 Value<bool> isRecurringParent = const Value.absent(),
                 Value<bool> isPaid = const Value.absent(),
+                Value<bool> isExcluded = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TransactionsCompanion.insert(
                 id: id,
@@ -2924,6 +3072,7 @@ class $$TransactionsTableTableManager
                 isInterestEntry: isInterestEntry,
                 isRecurringParent: isRecurringParent,
                 isPaid: isPaid,
+                isExcluded: isExcluded,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -128,6 +128,13 @@ class AppTranslations {
       'mark_as_paid': 'Mark as Paid',
       'mark_as_unpaid': 'Mark as Unpaid',
       'paid_label': 'PAID',
+      'exclude_from_summary': 'Exclude from Summary',
+      'include_in_summary': 'Include in Summary',
+      'excluded_badge': 'EXCLUDED',
+      'exclude_customer_switch': 'Exclude from Main Summary',
+      'exclude_customer_desc': 'Hide from Net Balance & totals on home screen',
+      'exclude_transaction_switch': 'Exclude from Balance',
+      'exclude_transaction_desc': 'Do not count this transaction towards customer balance',
     },
     'hi': {
       // Dashboard
@@ -256,6 +263,13 @@ class AppTranslations {
       'mark_as_paid': 'भुगतान चिह्नित करें',
       'mark_as_unpaid': 'भुगतान हटाएँ',
       'paid_label': 'भुगतान किया',
+      'exclude_from_summary': 'सारांश से बाहर करें',
+      'include_in_summary': 'सारांश में शामिल करें',
+      'excluded_badge': 'शामिल नहीं',
+      'exclude_customer_switch': 'मुख्य सारांश से बाहर रखें',
+      'exclude_customer_desc': 'होम स्क्रीन के कुल शेष में न जोड़ें',
+      'exclude_transaction_switch': 'शेष से बाहर रखें',
+      'exclude_transaction_desc': 'इस लेनदेन को ग्राहक के शेष में न जोड़ें',
     },
     'hinglish': {
       // Dashboard
@@ -385,6 +399,13 @@ class AppTranslations {
       'mark_as_paid': 'Paid mark karein',
       'mark_as_unpaid': 'Unpaid mark karein',
       'paid_label': 'PAID',
+      'exclude_from_summary': 'Summary se exclude karein',
+      'include_in_summary': 'Summary mein shamil karein',
+      'excluded_badge': 'EXCLUDED',
+      'exclude_customer_switch': 'Main Summary se bahar rakhein',
+      'exclude_customer_desc': 'Home screen ke Net Balance mein add na karein',
+      'exclude_transaction_switch': 'Balance se bahar rakhein',
+      'exclude_transaction_desc': 'Is transaction ko customer balance mein na jodein',
     },
   };
 

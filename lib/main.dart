@@ -51,6 +51,7 @@ void main() async {
   } catch (e) {
     debugPrint('Error generating recurring transactions: $e');
   }
+  await database.recalculateAllBalances();
 
   // Initialize Backup Services
   final authService = GoogleDriveAuthService();

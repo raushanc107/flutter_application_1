@@ -19,10 +19,6 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    // Refresh connection status when screen opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GoogleDriveAuthService>().init();
-    });
   }
 
   @override
@@ -159,9 +155,11 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                 try {
                   await authService.signIn();
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Connection failed: $e')),
-                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Connection failed: $e')),
+                    );
+                  }
                 }
               },
               icon: const Icon(Icons.login),
@@ -297,7 +295,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                   ),
                   value: manager.autoBackupEnabled,
                   onChanged: (value) => manager.updateSettings(enabled: value),
-                  activeColor: Theme.of(context).primaryColor,
+                  activeThumbColor: Theme.of(context).primaryColor,
                 ),
                 if (manager.autoBackupEnabled) ...[
                   const Divider(height: 1, indent: 16, endIndent: 16),
@@ -331,7 +329,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                     value: manager.wifiOnly,
                     onChanged: (value) =>
                         manager.updateSettings(wifiOnly: value),
-                    activeColor: Theme.of(context).primaryColor,
+                    activeThumbColor: Theme.of(context).primaryColor,
                   ),
                 ],
               ],

@@ -50,6 +50,7 @@ dependencies:
   flutter_contacts: ^1.1.9+2
   file_picker: ^10.3.8
   share_plus: ^12.0.1
+  http: ^1.6.0
   universal_html: ^2.3.0
   google_sign_in: ^6.2.1
   googleapis: ^13.2.0

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -17,6 +18,7 @@ class _RestoreBackupDialogState extends State<RestoreBackupDialog> {
   List<drive.File> _backups = [];
   String? _error;
   bool _isRestoring = false;
+  DateTime? _lastFetch;
 
   @override
   void initState() {
@@ -25,6 +27,10 @@ class _RestoreBackupDialogState extends State<RestoreBackupDialog> {
   }
 
   Future<void> _fetchBackups() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final storageService = context.read<GoogleDriveStorageService>();
       final backups = await storageService.listBackups();
@@ -32,6 +38,7 @@ class _RestoreBackupDialogState extends State<RestoreBackupDialog> {
         setState(() {
           _backups = backups;
           _isLoading = false;
+          _lastFetch = DateTime.now();
         });
       }
     } catch (e) {
@@ -46,25 +53,23 @@ class _RestoreBackupDialogState extends State<RestoreBackupDialog> {
 
   Future<void> _restoreBackup(drive.File backup) async {
     if (backup.id == null) return;
+    final storageService = context.read<GoogleDriveStorageService>();
+    final backupService = context.read<BackupService>();
     setState(() {
       _isRestoring = true;
     });
 
     try {
-      final storageService = context.read<GoogleDriveStorageService>();
       final bytes = await storageService.downloadBackup(backup.id!);
-      if (bytes == null) throw Exception("Download failed");
 
-      final jsonString = String.fromCharCodes(bytes);
+      final jsonString = utf8.decode(bytes);
 
-      // Call the new method we will add to BackupService
-      final backupService = context.read<BackupService>();
-      await backupService.importFromJsonString(jsonString);
+      await backupService.restoreFromJsonString(jsonString);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Restore successful! App will reload.'),
+            content: Text('Restore successful.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -85,13 +90,27 @@ class _RestoreBackupDialogState extends State<RestoreBackupDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Restore from Drive'),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Restore from Drive'),
+          if (_lastFetch != null)
+            Text(
+              'Last updated: ${DateFormat.jm().format(_lastFetch!)}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+        ],
+      ),
       content: SizedBox(
         width: double.maxFinite,
         height: 300,
         child: _buildContent(),
       ),
       actions: [
+        TextButton(
+          onPressed: _isLoading || _isRestoring ? null : _fetchBackups,
+          child: const Text('Refresh'),
+        ),
         TextButton(
           onPressed: _isRestoring ? null : () => Navigator.pop(context),
           child: const Text('Close'),
@@ -127,24 +146,54 @@ class _RestoreBackupDialogState extends State<RestoreBackupDialog> {
     }
 
     if (_backups.isEmpty) {
-      return const Center(child: Text('No backups found on Google Drive.'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.search_off, size: 48, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text('No backups found on Google Drive.'),
+            const SizedBox(height: 8),
+            Text(
+              'Search complete. We checked your hidden App Data folder.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
     }
 
-    return ListView.builder(
-      itemCount: _backups.length,
-      itemBuilder: (context, index) {
-        final backup = _backups[index];
-        final date = backup.createdTime ?? DateTime.now();
-        final sizeMb = (int.parse(backup.size ?? '0') / 1024 / 1024)
-            .toStringAsFixed(2);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: Text(
+            'Found ${_backups.length} backup files',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: _backups.length,
+            itemBuilder: (context, index) {
+              final backup = _backups[index];
+              final date =
+                  backup.modifiedTime ?? backup.createdTime ?? DateTime.now();
+              final sizeMb =
+                  ((int.tryParse(backup.size ?? '') ?? 0) / 1024 / 1024)
+                      .toStringAsFixed(2);
 
-        return ListTile(
-          leading: const Icon(Icons.description_outlined),
-          title: Text(DateFormat.yMMMd().add_jm().format(date)),
-          subtitle: Text('$sizeMb MB'),
-          onTap: () => _confirmRestore(backup),
-        );
-      },
+              return ListTile(
+                leading: const Icon(Icons.description_outlined),
+                title: Text(DateFormat.yMMMd().add_jm().format(date)),
+                subtitle: Text('$sizeMb MB'),
+                onTap: () => _confirmRestore(backup),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

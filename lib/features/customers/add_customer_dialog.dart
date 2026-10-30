@@ -21,6 +21,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   bool _isLoadingContact = false;
+  bool _isExcluded = false;
 
   @override
   void initState() {
@@ -29,6 +30,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
     _phoneController = TextEditingController(
       text: widget.customer?.phoneNumber,
     );
+    _isExcluded = widget.customer?.isExcluded ?? false;
   }
 
   bool get _canImportContacts {
@@ -126,6 +128,29 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
               ),
               keyboardType: TextInputType.phone,
             ),
+            const SizedBox(height: 12),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                AppTranslations.get(lang, 'exclude_customer_switch'),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                AppTranslations.get(lang, 'exclude_customer_desc'),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF6B7280),
+                ),
+              ),
+              value: _isExcluded,
+              onChanged: (val) => setState(() => _isExcluded = val),
+              activeThumbColor: const Color(0xFF4F46E5),
+            ),
           ],
         ),
       ),
@@ -165,6 +190,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
         widget.customer!.copyWith(
           name: name,
           phoneNumber: phone,
+          isExcluded: _isExcluded,
           lastUpdated: DateTime.now(),
         ),
       );
@@ -177,6 +203,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
           phoneNumber: drift.Value(phone),
           currentBalance: const drift.Value(0.0),
           lastUpdated: drift.Value(DateTime.now()),
+          isExcluded: drift.Value(_isExcluded),
         ),
       );
     }

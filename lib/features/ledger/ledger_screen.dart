@@ -506,9 +506,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
 
     final totalInterest = associatedInterests
-        .where((item) => !item.isPaid)
+        .where((item) => !item.isPaid && !item.isExcluded)
         .fold(0.0, (sum, item) => sum + item.amount);
-    final netAmount = (tx.isPaid ? 0.0 : tx.amount) + totalInterest;
+    final isInactive = tx.isPaid || tx.isExcluded;
+    final netAmount = (isInactive ? 0.0 : tx.amount) + totalInterest;
 
     final formatter = NumberFormat.currency(
       locale: 'en_IN',
@@ -555,10 +556,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
-                          color: tx.isPaid
+                          color: isInactive
                               ? const Color(0xFF9CA3AF)
                               : amountColor,
-                          decoration: tx.isPaid
+                          decoration: isInactive
                               ? TextDecoration.lineThrough
                               : null,
                         ),
@@ -580,12 +581,45 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: tx.isPaid
+                          color: isInactive
                               ? const Color(0xFF9CA3AF)
                               : const Color(0xFF6B7280),
                         ),
                       ),
-                      if (tx.isPaid) ...[
+                      if (tx.isExcluded) ...[
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFFF59E0B,
+                            ).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: const Color(
+                                0xFFF59E0B,
+                              ).withValues(alpha: 0.5),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Text(
+                            AppTranslations.get(
+                              Provider.of<LanguageProvider>(
+                                context,
+                              ).locale.languageCode,
+                              'excluded_badge',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFD97706),
+                            ),
+                          ),
+                        ),
+                      ] else if (tx.isPaid) ...[
                         const SizedBox(height: 2),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -867,13 +901,40 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: tx.isPaid
+                    color: (tx.isPaid || tx.isExcluded)
                         ? const Color(0xFF9CA3AF)
                         : amountColor.withValues(alpha: 0.8),
-                    decoration: tx.isPaid ? TextDecoration.lineThrough : null,
+                    decoration: (tx.isPaid || tx.isExcluded)
+                        ? TextDecoration.lineThrough
+                        : null,
                   ),
                 ),
-                if (tx.isPaid)
+                if (tx.isExcluded)
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      AppTranslations.get(
+                        Provider.of<LanguageProvider>(
+                          context,
+                        ).locale.languageCode,
+                        'excluded_badge',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFD97706),
+                      ),
+                    ),
+                  )
+                else if (tx.isPaid)
                   Container(
                     margin: const EdgeInsets.only(top: 2),
                     padding: const EdgeInsets.symmetric(
@@ -1180,8 +1241,12 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
-                      color: tx.isPaid ? const Color(0xFF9CA3AF) : amountColor,
-                      decoration: tx.isPaid ? TextDecoration.lineThrough : null,
+                      color: (tx.isPaid || tx.isExcluded)
+                          ? const Color(0xFF9CA3AF)
+                          : amountColor,
+                      decoration: (tx.isPaid || tx.isExcluded)
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
                   ),
                   Text(
@@ -1201,12 +1266,41 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
-                      color: tx.isPaid
+                      color: (tx.isPaid || tx.isExcluded)
                           ? const Color(0xFF9CA3AF)
                           : const Color(0xFF6B7280),
                     ),
                   ),
-                  if (tx.isPaid) ...[
+                  if (tx.isExcluded) ...[
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.5),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Text(
+                        AppTranslations.get(
+                          Provider.of<LanguageProvider>(
+                            context,
+                          ).locale.languageCode,
+                          'excluded_badge',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFD97706),
+                        ),
+                      ),
+                    ),
+                  ] else if (tx.isPaid) ...[
                     const SizedBox(height: 2),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -1327,8 +1421,38 @@ class _LedgerScreenState extends State<LedgerScreen> {
                   await database.updateTransaction(
                     tx.copyWith(isPaid: !tx.isPaid),
                   );
-                  // Also trigger balance recalculation for the customer
-                  _recalculateBalance(database);
+                  await _recalculateBalance(database);
+                },
+              ),
+            if (!tx.isRecurringParent)
+              ListTile(
+                leading: Icon(
+                  tx.isExcluded
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: const Color(0xFFF59E0B),
+                ),
+                title: Text(
+                  AppTranslations.get(
+                    Provider.of<LanguageProvider>(context).locale.languageCode,
+                    tx.isExcluded
+                        ? 'include_in_summary'
+                        : 'exclude_from_summary',
+                  ),
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : const Color(0xFF111827),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await database.updateTransaction(
+                    tx.copyWith(isExcluded: !tx.isExcluded),
+                  );
+                  await _recalculateBalance(database);
                 },
               ),
             ListTile(
@@ -1558,6 +1682,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     // Recurring State - initialize from existing config if editing a recurring parent
     bool isRecurring = existingTransaction?.isRecurringParent ?? false;
     String recurringFrequency = recurringConfig?.frequency ?? 'MONTHLY';
+    bool isExcluded = existingTransaction?.isExcluded ?? false;
 
     // Allow editing recurring settings if this is a recurring parent
     // Or allow creating new recurring if this is a new transaction
@@ -2043,6 +2168,64 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       ),
                     ),
                   ],
+                  if (!isRecurring) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF1F2937)
+                            : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      child: SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          AppTranslations.get(
+                            Provider.of<LanguageProvider>(
+                              context,
+                              listen: false,
+                            ).locale.languageCode,
+                            'exclude_transaction_switch',
+                          ),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : const Color(0xFF111827),
+                          ),
+                        ),
+                        subtitle: Text(
+                          AppTranslations.get(
+                            Provider.of<LanguageProvider>(
+                              context,
+                              listen: false,
+                            ).locale.languageCode,
+                            'exclude_transaction_desc',
+                          ),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF6B7280),
+                          ),
+                        ),
+                        value: isExcluded,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            isExcluded = val;
+                          });
+                        },
+                        activeThumbColor: const Color(0xFFF59E0B),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -2088,8 +2271,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
                     selectedTime.minute,
                   );
 
-                  double balanceAdjustment = 0;
-
                   if (existingTransaction != null) {
                     // Check if this is a recurring parent transaction
                     if (existingTransaction.isRecurringParent) {
@@ -2129,14 +2310,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       );
                       await _recalculateBalance(database);
                     } else {
-                      // Regular transaction update
-                      // Reverse old impact
-                      balanceAdjustment -= (existingTransaction.type == 'GAVE'
-                          ? existingTransaction.amount
-                          : -existingTransaction.amount);
-                      // Apply new impact
-                      balanceAdjustment += (type == 'GAVE' ? amount : -amount);
-
                       await database.updateTransaction(
                         existingTransaction.copyWith(
                           amount: amount,
@@ -2148,6 +2321,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           ),
                           // Reset calculation date if details changed
                           lastInterestCalculatedDate: const drift.Value(null),
+                          isExcluded: isExcluded,
                         ),
                       );
                     }
@@ -2166,6 +2340,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           date: drift.Value(finalDateTime),
                           notes: drift.Value(notes), // Main note
                           isRecurringParent: const drift.Value(true),
+                          isExcluded: drift.Value(isExcluded),
                         ),
                       );
 
@@ -2204,30 +2379,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           interestPeriod: drift.Value(
                             isInterestEnabled ? interestPeriod : null,
                           ),
+                          isExcluded: drift.Value(isExcluded),
                         ),
                       );
-                      balanceAdjustment = type == 'GAVE' ? amount : -amount;
                     }
                   }
 
-                  if (isRecurring ||
-                      (existingTransaction?.isRecurringParent ?? false)) {
-                    // Recalculate full balance to be safe as service might have added multiple entries
-                    await _recalculateBalance(database);
-                  } else {
-                    final updatedCustomer = _currentCustomer.copyWith(
-                      currentBalance:
-                          _currentCustomer.currentBalance + balanceAdjustment,
-                      lastUpdated: DateTime.now(),
-                    );
-
-                    await database.updateCustomer(updatedCustomer);
-                    if (context.mounted) {
-                      setState(() {
-                        _currentCustomer = updatedCustomer;
-                      });
-                    }
-                  }
+                  await _recalculateBalance(database);
 
                   if (context.mounted) {
                     Navigator.pop(context);
@@ -2254,7 +2412,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
     double newBalance = 0;
     for (final tx in transactions) {
-      if (tx.isPaid) continue; // Skip paid transactions in balance
+      if (tx.isPaid || tx.isExcluded) continue;
 
       if (tx.type == 'GAVE') {
         newBalance += tx.amount;

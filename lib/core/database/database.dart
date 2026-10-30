@@ -10,6 +10,7 @@ class Customers extends Table {
   RealColumn get currentBalance => real().withDefault(const Constant(0.0))();
   DateTimeColumn get lastUpdated =>
       dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isExcluded => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -36,6 +37,9 @@ class Transactions extends Table {
   BoolColumn get isPaid => boolean().withDefault(
     const Constant(false),
   )(); // New column for version 5
+  BoolColumn get isExcluded => boolean().withDefault(
+    const Constant(false),
+  )(); // New column for version 6
 
   @override
   Set<Column> get primaryKey => {id};
@@ -65,7 +69,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
@@ -118,6 +122,10 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(transactions, transactions.isPaid);
           } catch (_) {}
         }
+        if (from < 6) {
+          await m.addColumn(customers, customers.isExcluded);
+          await m.addColumn(transactions, transactions.isExcluded);
+        }
       },
     );
   }
@@ -144,8 +152,8 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> deleteAllData() async {
-    await delete(transactions).go();
     await delete(recurringTransactions).go();
+    await delete(transactions).go();
     await delete(customers).go();
   }
 
@@ -225,7 +233,7 @@ class AppDatabase extends _$AppDatabase {
 
       double balance = 0;
       for (final tx in customerTransactions) {
-        if (tx.isPaid) continue; // Skip paid transactions in balance
+        if (tx.isPaid || tx.isExcluded) continue;
 
         // GAVE: You gave money (Credit) -> Positive
         // GOT: You got money (Payment) -> Negative (reduces credit)
@@ -265,13 +273,25 @@ class AppDatabase extends _$AppDatabase {
   ) async {
     final txns = await getTransactionsByDateRange(startDate, endDate);
     final allCustomers = await getAllCustomers();
+    final includedCustomerIds = allCustomers
+        .where((customer) => !customer.isExcluded)
+        .map((customer) => customer.id)
+        .toSet();
+    final includedTransactions = txns
+        .where(
+          (transaction) =>
+              !transaction.isPaid &&
+              !transaction.isExcluded &&
+              includedCustomerIds.contains(transaction.customerId),
+        )
+        .toList();
 
     double totalGiven = 0;
     double totalReceived = 0;
     int gaveCount = 0;
     int gotCount = 0;
 
-    for (final tx in txns) {
+    for (final tx in includedTransactions) {
       if (tx.type == 'GAVE') {
         totalGiven += tx.amount;
         gaveCount++;
@@ -283,7 +303,10 @@ class AppDatabase extends _$AppDatabase {
 
     int activeCustomers = 0;
     double totalOutstanding = 0;
-    for (final customer in allCustomers) {
+    final includedCustomers = allCustomers
+        .where((customer) => !customer.isExcluded)
+        .toList();
+    for (final customer in includedCustomers) {
       if (customer.currentBalance.abs() > 0.01) {
         activeCustomers++;
       }
@@ -293,15 +316,15 @@ class AppDatabase extends _$AppDatabase {
     return {
       'totalGiven': totalGiven,
       'totalReceived': totalReceived,
-      'totalTransactions': txns.length,
+      'totalTransactions': includedTransactions.length,
       'gaveCount': gaveCount,
       'gotCount': gotCount,
       'activeCustomers': activeCustomers,
-      'totalCustomers': allCustomers.length,
+      'totalCustomers': includedCustomers.length,
       'totalOutstanding': totalOutstanding,
-      'avgTransaction': txns.isEmpty
+      'avgTransaction': includedTransactions.isEmpty
           ? 0.0
-          : (totalGiven + totalReceived) / txns.length,
+          : (totalGiven + totalReceived) / includedTransactions.length,
     };
   }
 
@@ -310,9 +333,18 @@ class AppDatabase extends _$AppDatabase {
     DateTime endDate,
   ) async {
     final txns = await getTransactionsByDateRange(startDate, endDate);
+    final excludedCustomerIds = (await getAllCustomers())
+        .where((customer) => customer.isExcluded)
+        .map((customer) => customer.id)
+        .toSet();
     final Map<DateTime, Map<String, double>> dailyData = {};
 
     for (final tx in txns) {
+      if (tx.isPaid ||
+          tx.isExcluded ||
+          excludedCustomerIds.contains(tx.customerId)) {
+        continue;
+      }
       final date = DateTime(tx.date.year, tx.date.month, tx.date.day);
       if (!dailyData.containsKey(date)) {
         dailyData[date] = {'given': 0.0, 'received': 0.0};
@@ -347,6 +379,7 @@ class AppDatabase extends _$AppDatabase {
     double totalNegative = 0;
 
     for (final customer in allCustomers) {
+      if (customer.isExcluded) continue;
       if (customer.currentBalance > 0.01) {
         customersOweYou++;
         totalPositive += customer.currentBalance;
@@ -374,6 +407,7 @@ class AppDatabase extends _$AppDatabase {
   }) async {
     final allCustomers = await getAllCustomers();
     final filtered = allCustomers.where((c) {
+      if (c.isExcluded) return false;
       if (isDebtors) {
         return c.currentBalance > 0.01;
       } else {
@@ -403,6 +437,9 @@ class AppDatabase extends _$AppDatabase {
       recurringTransactions,
     )..where((t) => t.isActive.equals(true))).get();
   }
+
+  Future<List<RecurringTransaction>> getAllRecurringTransactions() =>
+      select(recurringTransactions).get();
 
   Future<int> insertRecurringTransaction(
     RecurringTransactionsCompanion entry,

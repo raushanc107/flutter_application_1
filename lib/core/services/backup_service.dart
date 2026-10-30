@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data'; // For Uint8List
+import 'dart:typed_data';
 import 'package:drift/drift.dart' as drift;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -13,20 +13,17 @@ class BackupService {
   BackupService(this._db);
 
   Future<String> createBackupJson() async {
-    // ... (same implementation)
-    // 1. Fetch all data
     final customers = await _db.getAllCustomers();
     final transactions = await _db.getAllTransactions();
-    final recurringTransactions = await _db.getAllActiveRecurringTransactions();
+    final recurringTransactions = await _db.getAllRecurringTransactions();
 
-    // 2. Convert to JSON
     final data = {
       'customers': customers.map((c) => c.toJson()).toList(),
       'transactions': transactions.map((t) => t.toJson()).toList(),
       'recurringTransactions': recurringTransactions
           .map((r) => r.toJson())
           .toList(),
-      'version': 5, // Schema version for compatibility checking
+      'version': 6, // Schema version for compatibility checking
       'exportDate': DateTime.now().toIso8601String(),
     };
     return jsonEncode(data);
@@ -41,11 +38,10 @@ class BackupService {
   /// Returns an XFile for sharing/uploading
   Future<XFile> createBackupXFile() async {
     final bytes = await createBackupBytes();
-    final date = DateTime.now().toIso8601String().split('T')[0];
     return XFile.fromData(
       Uint8List.fromList(bytes),
       mimeType: 'application/json',
-      name: 'khatabook_backup_$date.json',
+      name: _createBackupFilename(),
     );
   }
 
@@ -61,8 +57,7 @@ class BackupService {
       final anchor = html.document.createElement('a') as html.AnchorElement
         ..href = url
         ..style.display = 'none'
-        ..download =
-            'khatabook_backup_${DateTime.now().toIso8601String().split('T')[0]}.json';
+        ..download = _createBackupFilename();
       html.document.body!.children.add(anchor);
       anchor.click();
       html.document.body!.children.remove(anchor);
@@ -70,9 +65,14 @@ class BackupService {
     } else {
       // Mobile: Share XFile
       final xFile = await createBackupXFile();
-      await Share.shareXFiles([xFile], text: 'Khatabook Backup');
+      await SharePlus.instance.share(
+        ShareParams(files: [xFile], text: 'Khatabook Backup'),
+      );
     }
   }
+
+  String _createBackupFilename() =>
+      'khatabook_backup_${DateTime.now().toIso8601String().replaceAll(':', '-')}.json';
 
   /// Helper to parse DateTime from either String (ISO8601) or int (milliseconds since epoch)
   DateTime? _parseDateTime(dynamic value) {
@@ -143,6 +143,7 @@ class BackupService {
               (custData['currentBalance'] as num).toDouble(),
             ),
             lastUpdated: drift.Value(_parseDateTime(custData['lastUpdated'])!),
+            isExcluded: drift.Value(custData['isExcluded'] as bool? ?? false),
           ),
         );
         addedCustomers++;
@@ -189,6 +190,7 @@ class BackupService {
               txData['isRecurringParent'] as bool? ?? false,
             ),
             isPaid: drift.Value(txData['isPaid'] as bool? ?? false),
+            isExcluded: drift.Value(txData['isExcluded'] as bool? ?? false),
           ),
         );
         addedTransactions++;
@@ -201,7 +203,7 @@ class BackupService {
     int addedRecurringTransactions = 0;
 
     if (recurringTransactionsData.isNotEmpty) {
-      final existingRecurring = await _db.getAllActiveRecurringTransactions();
+      final existingRecurring = await _db.getAllRecurringTransactions();
       final existingRecurringIds = existingRecurring.map((r) => r.id).toSet();
 
       for (final r in recurringTransactionsData) {
@@ -239,5 +241,12 @@ class BackupService {
       'transactions': addedTransactions,
       'recurringTransactions': addedRecurringTransactions,
     };
+  }
+
+  Future<Map<String, int>> restoreFromJsonString(String content) {
+    return _db.transaction(() async {
+      await _db.deleteAllData();
+      return importFromJsonString(content);
+    });
   }
 }
