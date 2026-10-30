@@ -97,6 +97,7 @@ void main() {
       expect(find.byKey(const ValueKey('summary-row-normal')), findsNothing);
       expect(find.byKey(const ValueKey('summary-row-recurring')), findsNothing);
       expect(find.text('2.0% Monthly'), findsOneWidget);
+      expect(find.byIcon(Icons.percent), findsOneWidget);
       expect(find.textContaining('Interest due'), findsNWidgets(2));
       expect(find.text('Mark as Paid'), findsOneWidget);
       expect(find.text('Record payment'), findsOneWidget);
@@ -498,7 +499,10 @@ void main() {
           Provider<AppDatabase>.value(value: database),
           ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ],
-        child: MaterialApp(home: LedgerScreen(customer: customer!)),
+        child: MaterialApp(
+          theme: ThemeData.dark(),
+          home: LedgerScreen(customer: customer!),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -511,6 +515,25 @@ void main() {
     expect(
       find.descendant(of: firstGroup, matching: find.byType(Material)),
       findsNWidgets(2),
+    );
+    final groupDecoration =
+        tester.widget<Container>(firstGroup).decoration! as BoxDecoration;
+    expect(
+      groupDecoration.color,
+      const Color(0xFF1E293B).withValues(alpha: 0.6),
+    );
+    expect(groupDecoration.borderRadius, BorderRadius.circular(20));
+    final dateBadgeFinder = find.byKey(
+      const ValueKey('transaction-badge-normal-first'),
+    );
+    final dateBadge = tester.widget<Container>(dateBadgeFinder);
+    expect(dateBadge.decoration, equals(null));
+    expect(tester.getSize(dateBadgeFinder).width, 38);
+    expect(tester.getTopLeft(dateBadgeFinder).dx, 26);
+    expect(
+      tester.getTopLeft(find.text('Normal one')).dx -
+          tester.getTopRight(dateBadgeFinder).dx,
+      11,
     );
     await tester.scrollUntilVisible(
       secondGroup,

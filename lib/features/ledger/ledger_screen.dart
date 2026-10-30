@@ -677,11 +677,24 @@ class _LedgerScreenState extends State<LedgerScreen> {
       key: ValueKey('normal-group-${transactions.first.id}'),
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(14),
+        color: isDark
+            ? const Color(0xFF1E293B).withValues(alpha: 0.6)
+            : Colors.white.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          color: isDark
+              ? const Color(0xFF334155).withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.4),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.2)
+                : const Color(0xFF000000).withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -768,7 +781,13 @@ class _LedgerScreenState extends State<LedgerScreen> {
     return StatefulBuilder(
       builder: (context, setTileState) {
         return Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          data: Theme.of(context).copyWith(
+            dividerColor: Colors.transparent,
+            listTileTheme: Theme.of(context).listTileTheme.copyWith(
+              minLeadingWidth: 38,
+              horizontalTitleGap: 11,
+            ),
+          ),
           child: Container(
             decoration: BoxDecoration(
               border: Border(
@@ -781,7 +800,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             ),
             child: ExpansionTile(
               tilePadding: const EdgeInsets.only(
-                left: 16,
+                left: 13,
                 right: 12,
                 top: 8,
                 bottom: 8,
@@ -1541,7 +1560,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                               borderRadius: BorderRadius.circular(11),
                             ),
                             child: Icon(
-                              Icons.account_balance_wallet_outlined,
+                              Icons.percent,
                               size: 20,
                               color: isDark
                                   ? const Color(0xFFC4B5FD)
@@ -2145,40 +2164,43 @@ class _LedgerScreenState extends State<LedgerScreen> {
   }
 
   Widget _buildBadge(Transaction tx) {
-    Color badgeBgColor;
+    final hasSpecialIcon =
+        (tx.isInterestEntry ?? false) ||
+        (tx.interestRate != null && tx.interestRate! > 0) ||
+        tx.isRecurringParent ||
+        tx.amount == 0;
+    Color? badgeBgColor;
     Color badgeTextColor;
     Color badgeMonthColor;
 
-    if ((tx.isInterestEntry ?? false) ||
-        (tx.interestRate != null && tx.interestRate! > 0) ||
-        (tx.isRecurringParent || tx.amount == 0)) {
-      // Interest/Recurring transactions
+    if (hasSpecialIcon) {
       if (Theme.of(context).brightness == Brightness.dark) {
-        badgeBgColor = const Color(0xFF312E81); // Dark indigo background
-        badgeTextColor = const Color(0xFF818CF8); // Light indigo icon
+        badgeBgColor = const Color(0xFF312E81);
+        badgeTextColor = const Color(0xFF818CF8);
         badgeMonthColor = const Color(0xFF818CF8);
       } else {
-        badgeBgColor = const Color(0xFFEDE9FE); // Light indigo background
-        badgeTextColor = const Color(0xFF4F46E5); // Indigo icon
+        badgeBgColor = const Color(0xFFEDE9FE);
+        badgeTextColor = const Color(0xFF4F46E5);
         badgeMonthColor = const Color(0xFF4F46E5);
       }
     } else if (Theme.of(context).brightness == Brightness.dark) {
-      badgeBgColor = const Color(0xFF374151);
       badgeTextColor = Colors.white;
       badgeMonthColor = const Color(0xFF9CA3AF);
     } else {
-      badgeBgColor = Colors.white;
       badgeTextColor = const Color(0xFF111827);
       badgeMonthColor = const Color(0xFF6B7280);
     }
 
     return Container(
-      width: 50,
+      key: ValueKey('transaction-badge-${tx.id}'),
+      width: hasSpecialIcon ? 50 : 38,
       height: 50,
-      decoration: BoxDecoration(
-        color: badgeBgColor,
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: badgeBgColor == null
+          ? null
+          : BoxDecoration(
+              color: badgeBgColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -2191,7 +2213,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             Text(
               DateFormat('dd').format(tx.date),
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: badgeTextColor,
               ),
@@ -2373,33 +2395,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
         ? const Color(0xFFEF4444)
         : const Color(0xFF10B981);
 
-    Color badgeBgColor;
-    Color badgeTextColor;
-    Color badgeMonthColor;
-
-    if ((tx.isInterestEntry ?? false) ||
-        (tx.interestRate != null && tx.interestRate! > 0) ||
-        (tx.isRecurringParent || tx.amount == 0)) {
-      // Interest/Recurring transactions
-      if (Theme.of(context).brightness == Brightness.dark) {
-        badgeBgColor = const Color(0xFF312E81); // Dark indigo background
-        badgeTextColor = const Color(0xFF818CF8); // Light indigo icon
-        badgeMonthColor = const Color(0xFF818CF8);
-      } else {
-        badgeBgColor = const Color(0xFFEDE9FE); // Light indigo background
-        badgeTextColor = const Color(0xFF4F46E5); // Indigo icon
-        badgeMonthColor = const Color(0xFF4F46E5);
-      }
-    } else if (Theme.of(context).brightness == Brightness.dark) {
-      badgeBgColor = const Color(0xFF374151);
-      badgeTextColor = Colors.white;
-      badgeMonthColor = const Color(0xFF9CA3AF);
-    } else {
-      badgeBgColor = Colors.white; // White Badge on Gray Background
-      badgeTextColor = const Color(0xFF111827); // Standard Text
-      badgeMonthColor = const Color(0xFF6B7280); // Secondary Text
-    }
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -2418,7 +2413,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 : null,
           ),
           padding: const EdgeInsets.only(
-            left: 16,
+            left: 13,
             right: 12,
             top: 8,
             bottom: 8,
@@ -2429,43 +2424,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
               Expanded(
                 child: Row(
                   children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: badgeBgColor,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if ((tx.isInterestEntry ?? false) ||
-                              (tx.interestRate != null && tx.interestRate! > 0))
-                            Icon(Icons.percent, size: 24, color: badgeTextColor)
-                          else if (tx.isRecurringParent || tx.amount == 0)
-                            Icon(Icons.repeat, size: 24, color: badgeTextColor)
-                          else ...[
-                            Text(
-                              DateFormat('dd').format(tx.date),
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: badgeTextColor,
-                              ),
-                            ),
-                            Text(
-                              DateFormat('MMM').format(tx.date).toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: badgeMonthColor,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
+                    _buildBadge(tx),
+                    const SizedBox(width: 11),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
