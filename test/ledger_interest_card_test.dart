@@ -79,6 +79,18 @@ void main() {
     );
     await database.insertTransaction(
       TransactionsCompanion(
+        id: const Value('ledger-filter-interest-child'),
+        customerId: const Value(customerId),
+        parentTransactionId: const Value('ledger-filter-interest'),
+        amount: const Value(250),
+        type: const Value('GAVE'),
+        date: Value(interestDate.add(const Duration(days: 1))),
+        notes: const Value('Interest for the month'),
+        isInterestEntry: const Value(true),
+      ),
+    );
+    await database.insertTransaction(
+      TransactionsCompanion(
         id: const Value('ledger-filter-recurring'),
         customerId: const Value(customerId),
         amount: const Value(0),
@@ -86,6 +98,17 @@ void main() {
         date: Value(recurringDate),
         notes: const Value('Monthly rent'),
         isRecurringParent: const Value(true),
+      ),
+    );
+    await database.insertTransaction(
+      TransactionsCompanion(
+        id: const Value('ledger-filter-recurring-child'),
+        customerId: const Value(customerId),
+        parentTransactionId: const Value('ledger-filter-recurring'),
+        amount: const Value(2000),
+        type: const Value('GAVE'),
+        date: Value(recurringDate.add(const Duration(days: 1))),
+        notes: const Value('Scheduled rent payment'),
       ),
     );
     await database.insertRecurringTransaction(
@@ -132,6 +155,29 @@ void main() {
     expect(find.byIcon(Icons.percent), findsOneWidget);
     expect(find.byIcon(Icons.repeat), findsOneWidget);
     for (final transactionId in [
+      'ledger-filter-normal',
+      'ledger-filter-interest',
+      'ledger-filter-recurring',
+    ]) {
+      expect(
+        find.byKey(ValueKey('running-balance-$transactionId')),
+        findsOneWidget,
+      );
+    }
+    for (final entry in [
+      ('ledger-filter-normal', '₹500'),
+      ('ledger-filter-interest', '₹1,000'),
+      ('ledger-filter-recurring', '₹0'),
+    ]) {
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('running-balance-${entry.$1}')),
+          matching: find.text(entry.$2),
+        ),
+        findsOneWidget,
+      );
+    }
+    for (final transactionId in [
       'ledger-filter-interest',
       'ledger-filter-recurring',
     ]) {
@@ -150,6 +196,20 @@ void main() {
     expect(find.text('Cash transaction'), findsOneWidget);
     expect(find.text('Interest loan'), findsNothing);
     expect(find.text('Monthly rent'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('running-balance-ledger-filter-normal')),
+        matching: find.text('₹500'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('running-balance-ledger-filter-normal')),
+        matching: find.text('YOU\'LL GIVE'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('ledger-filter-advance')));
     await tester.pumpAndSettle();
@@ -157,6 +217,15 @@ void main() {
     expect(find.text('Cash transaction'), findsNothing);
     expect(find.text('Interest loan'), findsOneWidget);
     expect(find.text('Monthly rent'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(
+          const ValueKey('running-balance-ledger-filter-interest'),
+        ),
+        matching: find.text('₹1,000'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('ledger-filter-all')));
     await tester.pumpAndSettle();
@@ -164,6 +233,38 @@ void main() {
     expect(find.text('Cash transaction'), findsOneWidget);
     expect(find.text('Interest loan'), findsOneWidget);
     expect(find.text('Monthly rent'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('running-balance-ledger-filter-normal')),
+        matching: find.text('₹500'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(
+          const ValueKey('running-balance-ledger-filter-interest'),
+        ),
+        matching: find.text('₹1,000'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(
+          const ValueKey('running-balance-ledger-filter-recurring'),
+        ),
+        matching: find.text('₹0'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('running-balance-ledger-filter-normal')),
+        matching: find.text('₹500'),
+      ),
+      findsOneWidget,
+    );
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));
   });
