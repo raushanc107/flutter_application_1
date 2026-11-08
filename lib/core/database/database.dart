@@ -158,6 +158,8 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<Transaction>> getAllTransactions() => select(transactions).get();
+  Stream<List<Transaction>> watchAllTransactions() =>
+      select(transactions).watch();
 
   Future<List<Transaction>> getTransactionsForCustomer(String customerId) {
     return (select(
