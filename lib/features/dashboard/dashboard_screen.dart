@@ -671,7 +671,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
         if (_showAlertsOnly) {
           customers = customers
-              .where((customer) => customerAlerts.containsKey(customer.id))
+              .where(
+                (customer) =>
+                    !customer.isExcluded &&
+                    customerAlerts.containsKey(customer.id),
+              )
               .toList();
         }
         customers.sort((a, b) {
