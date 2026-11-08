@@ -120,11 +120,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
 
           final transactions = transactionSnapshot.data!;
-          return Column(
-            children: [
-              _buildSummaryCard(database, transactions),
-              _buildSearchBar(),
-              Expanded(child: _buildCustomerList(database, transactions)),
+          final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+          return CustomScrollView(
+            slivers: [
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SummaryCardHeaderDelegate(
+                  backgroundColor: backgroundColor,
+                  builder: (shrinkProgress) =>
+                      _buildSummaryCard(database, transactions, shrinkProgress),
+                ),
+              ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SearchBarHeaderDelegate(
+                  backgroundColor: backgroundColor,
+                  child: _buildSearchBar(),
+                ),
+              ),
+              _buildCustomerList(database, transactions),
             ],
           );
         },
@@ -148,6 +162,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildSummaryCard(
     AppDatabase database,
     List<Transaction> transactions,
+    double shrinkProgress,
   ) {
     return StreamBuilder<List<Customer>>(
       stream: database.watchAllCustomers(),
@@ -240,13 +255,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
           listen: false,
         ).locale.languageCode;
 
-        return Container(
-          margin: const EdgeInsets.all(16),
+        return _buildInterpolatingSummaryCard(
+          progress: shrinkProgress,
+          isDark: isDark,
+          formatter: formatter,
+          netBalance: netBalance,
+          totalGet: totalGet,
+          totalGive: totalGive,
+          alertCustomerCount: alertCustomerCount,
+          languageCode: languageCode,
+        );
+      },
+    );
+  }
+
+  Widget _buildInterpolatingSummaryCard({
+    required double progress,
+    required bool isDark,
+    required NumberFormat formatter,
+    required double netBalance,
+    required double totalGet,
+    required double totalGive,
+    required int alertCustomerCount,
+    required String languageCode,
+  }) {
+    final showAlert = alertCustomerCount > 0 || _showAlertsOnly;
+    final cardBackground = isDark
+        ? const Color(0xFF1E293B).withValues(alpha: 0.6)
+        : Colors.white.withValues(alpha: 0.6);
+    final lineColor = isDark
+        ? const Color(0xFF334155).withValues(alpha: 0.3)
+        : const Color(0xFFE5E7EB).withValues(alpha: 0.5);
+    final netBalanceColor = netBalance.abs() < 0.01
+        ? const Color(0xFF6B7280)
+        : (netBalance > 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444));
+    final labels = [
+      AppTranslations.get(languageCode, 'net_balance'),
+      AppTranslations.get(languageCode, 'you_will_get'),
+      AppTranslations.get(languageCode, 'you_will_give'),
+    ];
+    final alertLabel = AppTranslations.get(
+      languageCode,
+      _showAlertsOnly
+          ? 'showing_customers_needing_attention'
+          : alertCustomerCount == 1
+          ? 'customer_needs_attention_label'
+          : 'customers_need_attention_label',
+    );
+    final cardHeight = 192 + (60 - 192) * progress;
+    final topMargin = 16 + (6 - 16) * progress;
+    final bottomMargin = 16 * (1 - progress);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, topMargin, 16, bottomMargin),
+      child: SizedBox(
+        height: cardHeight,
+        width: double.infinity,
+        child: Container(
           decoration: BoxDecoration(
-            color: isDark
-                ? const Color(0xFF1E293B).withValues(alpha: 0.6)
-                : Colors.white.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(20),
+            color: cardBackground,
+            borderRadius: BorderRadius.circular(20 + (14 - 20) * progress),
             border: Border.all(
               color: isDark
                   ? const Color(0xFF334155).withValues(alpha: 0.3)
@@ -262,220 +330,234 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Column(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20 + (14 - 20) * progress),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final netHeight = 79 + (60 - 79) * progress;
+                final metricsTop = 79 * (1 - progress);
+                final metricsHeight = 72 + (60 - 72) * progress;
+                final alertTop = 151 * (1 - progress);
+                final alertHeight = 41 + (60 - 41) * progress;
+                final borderOpacity = 1 - progress;
+
+                Widget labelAndValue({
+                  required String label,
+                  required String value,
+                  required Color valueColor,
+                  required double labelSize,
+                  required double valueSize,
+                  required double gap,
+                }) {
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: labelSize,
+                          color: const Color(0xFF6B7280),
+                          letterSpacing: label == labels.first
+                              ? 1.2 * (1 - progress)
+                              : 0,
+                          fontWeight: label == labels.first
+                              ? FontWeight.w500
+                              : FontWeight.normal,
+                        ),
+                      ),
+                      SizedBox(height: gap),
+                      Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: valueSize,
+                          fontWeight: label == labels.first
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: valueColor,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                return Stack(
                   children: [
-                    Text(
-                      AppTranslations.get(
-                        Provider.of<LanguageProvider>(
-                          context,
-                        ).locale.languageCode,
-                        'net_balance',
-                      ),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        letterSpacing: 1.2,
-                        color: Color(0xFF6B7280),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      formatter.format(netBalance),
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: netBalance.abs() < 0.01
-                            ? const Color(0xFF6B7280)
-                            : (netBalance > 0
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFFEF4444)),
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      width: width * (1 - 0.68 * progress),
+                      height: netHeight,
+                      child: labelAndValue(
+                        label: labels[0],
+                        value: formatter.format(netBalance),
+                        valueColor: netBalanceColor,
+                        labelSize: 12 + (9 - 12) * progress,
+                        valueSize: 24 + (14 - 24) * progress,
+                        gap: 4 * (1 - progress),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              Container(
-                height: 1,
-                color: isDark
-                    ? const Color(0xFF334155).withValues(alpha: 0.3)
-                    : const Color(0xFFE5E7EB).withValues(alpha: 0.5),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          Text(
-                            AppTranslations.get(
-                              Provider.of<LanguageProvider>(
-                                context,
-                              ).locale.languageCode,
-                              'you_will_get',
-                            ),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF6B7280),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            formatter.format(totalGet),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF10B981),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Container(
-                    width: 1,
-                    height: 32,
-                    color: isDark
-                        ? const Color(0xFF334155).withValues(alpha: 0.3)
-                        : const Color(0xFFE5E7EB).withValues(alpha: 0.5),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          Text(
-                            AppTranslations.get(
-                              Provider.of<LanguageProvider>(
-                                context,
-                              ).locale.languageCode,
-                              'you_will_give',
-                            ),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF6B7280),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            formatter.format(totalGive),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFEF4444),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (alertCustomerCount > 0 || _showAlertsOnly) ...[
-                Divider(
-                  height: 1,
-                  color: isDark
-                      ? const Color(0xFF334155).withValues(alpha: 0.5)
-                      : const Color(0xFFE5E7EB),
-                ),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showAlertsOnly = !_showAlertsOnly;
-                      });
-                    },
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(20),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            constraints: const BoxConstraints(minWidth: 20),
-                            height: 20,
-                            padding: const EdgeInsets.symmetric(horizontal: 5),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFFF59E0B,
-                              ).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: const Color(0xFFA76513),
+                    Positioned(
+                      left: width * 0.32 * progress,
+                      top: metricsTop,
+                      width: width * (1 - 0.42 * progress),
+                      height: metricsHeight,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: lineColor.withValues(
+                                alpha: lineColor.a * borderOpacity,
                               ),
                             ),
-                            child: Text(
-                              alertCustomerCount.toString(),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFFFBBF24),
+                            left: BorderSide(
+                              color: lineColor.withValues(
+                                alpha: lineColor.a * progress,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              AppTranslations.get(
-                                languageCode,
-                                _showAlertsOnly
-                                    ? 'showing_customers_needing_attention'
-                                    : alertCustomerCount == 1
-                                    ? 'customer_needs_attention_label'
-                                    : 'customers_need_attention_label',
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFFFBBF24),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          if (_showAlertsOnly) ...[
-                            const SizedBox(width: 4),
-                            const Text(
-                              '·',
-                              style: TextStyle(
-                                color: Color(0xFFCBD5E1),
-                                fontSize: 11,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10 - 8 * progress,
+                                  vertical: 12 - 10 * progress,
+                                ),
+                                child: labelAndValue(
+                                  label: labels[1],
+                                  value: formatter.format(totalGet),
+                                  valueColor: const Color(0xFF10B981),
+                                  labelSize: 11 + (8 - 11) * progress,
+                                  valueSize: 18 + (12 - 18) * progress,
+                                  gap: 4 * (1 - progress),
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              AppTranslations.get(
-                                languageCode,
-                                'show_all_short',
-                              ),
-                              style: const TextStyle(
-                                color: Color(0xFFCBD5E1),
-                                fontSize: 11,
-                                decoration: TextDecoration.underline,
+                            Container(
+                              width: 1,
+                              height: 32 * (1 - progress),
+                              color: lineColor.withValues(alpha: progress),
+                            ),
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10 - 8 * progress,
+                                  vertical: 12 - 10 * progress,
+                                ),
+                                child: labelAndValue(
+                                  label: labels[2],
+                                  value: formatter.format(totalGive),
+                                  valueColor: const Color(0xFFEF4444),
+                                  labelSize: 11 + (8 - 11) * progress,
+                                  valueSize: 18 + (12 - 18) * progress,
+                                  gap: 4 * (1 - progress),
+                                ),
                               ),
                             ),
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ],
+                    if (showAlert)
+                      Positioned(
+                        left: width * 0.90 * progress,
+                        top: alertTop,
+                        width: width * (1 - 0.90 * progress),
+                        height: alertHeight,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => setState(
+                              () => _showAlertsOnly = !_showAlertsOnly,
+                            ),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  top: BorderSide(
+                                    color: lineColor.withValues(
+                                      alpha: lineColor.a * borderOpacity,
+                                    ),
+                                  ),
+                                  left: BorderSide(
+                                    color: lineColor.withValues(
+                                      alpha: lineColor.a * progress,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8 * (1 - progress),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      constraints: const BoxConstraints(
+                                        minWidth: 20,
+                                      ),
+                                      height: 20,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 5,
+                                      ),
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                          0xFFF59E0B,
+                                        ).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                        border: Border.all(
+                                          color: const Color(0xFFA76513),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        alertCustomerCount.toString(),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFFFBBF24),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 8 * (1 - progress)),
+                                    if (progress < 1)
+                                      Flexible(
+                                        child: Opacity(
+                                          opacity: 1 - progress,
+                                          child: Text(
+                                            alertLabel,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Color(0xFFFBBF24),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -650,7 +732,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       stream: database.watchAllCustomers(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
 
         var customers = snapshot.data ?? [];
@@ -717,67 +802,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
 
         if (customers.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.people_outline, size: 64, color: Colors.grey[300]),
-                const SizedBox(height: 16),
-                Text(
-                  _searchQuery.isNotEmpty ||
-                          _filterType != 'All' ||
-                          _showAlertsOnly
-                      ? AppTranslations.get(
-                          Provider.of<LanguageProvider>(
-                            context,
-                          ).locale.languageCode,
-                          'no_results_found',
-                        )
-                      : AppTranslations.get(
-                          Provider.of<LanguageProvider>(
-                            context,
-                          ).locale.languageCode,
-                          'no_customers',
-                        ),
-                  style: const TextStyle(color: Color(0xFF6B7280)),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return Column(
-          children: [
-            // Changed from crossAxisAlignment: CrossAxisAlignment.start to default center for safety or keep structure
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
+          return SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Icon(Icons.people_outline, size: 64, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
                   Text(
-                    _showAlertsOnly
-                        ? '${customers.length} ${AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'customers_needing_attention')}'
-                        : '${customers.length} ${AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'customers_label')}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF6B7280),
-                      letterSpacing: 1.0,
-                    ),
+                    _searchQuery.isNotEmpty ||
+                            _filterType != 'All' ||
+                            _showAlertsOnly
+                        ? AppTranslations.get(
+                            Provider.of<LanguageProvider>(
+                              context,
+                            ).locale.languageCode,
+                            'no_results_found',
+                          )
+                        : AppTranslations.get(
+                            Provider.of<LanguageProvider>(
+                              context,
+                            ).locale.languageCode,
+                            'no_customers',
+                          ),
+                    style: const TextStyle(color: Color(0xFF6B7280)),
                   ),
                 ],
               ),
             ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
-                itemCount: customers.length,
-                itemBuilder: (context, index) {
+          );
+        }
+
+        return SliverMainAxisGroup(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    Text(
+                      _showAlertsOnly
+                          ? '${customers.length} ${AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'customers_needing_attention')}'
+                          : '${customers.length} ${AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'customers_label')}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF6B7280),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
                   final customer = customers[index];
                   return _buildCustomerItem(
                     customer,
                     customerAlerts[customer.id] ?? const [],
                   );
-                },
+                }, childCount: customers.length),
               ),
             ),
           ],
@@ -1320,4 +1408,82 @@ class _CustomerAlert {
   final int daysOverdue;
 
   const _CustomerAlert({required this.daysOverdue});
+}
+
+class _SummaryCardHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _SummaryCardHeaderDelegate({
+    required this.backgroundColor,
+    required this.builder,
+  });
+
+  static const _expandedExtent = 224.0;
+  static const _compactExtent = 66.0;
+
+  final Color backgroundColor;
+  final Widget Function(double shrinkProgress) builder;
+
+  @override
+  double get minExtent => _compactExtent;
+
+  @override
+  double get maxExtent => _expandedExtent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final shrinkProgress = (shrinkOffset / (_expandedExtent - _compactExtent))
+        .clamp(0.0, 1.0);
+    return ColoredBox(
+      color: backgroundColor,
+      child: SizedBox.expand(child: builder(shrinkProgress)),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SummaryCardHeaderDelegate oldDelegate) =>
+      backgroundColor != oldDelegate.backgroundColor ||
+      builder != oldDelegate.builder;
+}
+
+class _SearchBarHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _SearchBarHeaderDelegate({
+    required this.backgroundColor,
+    required this.child,
+  });
+
+  static const _extent = 68.0;
+
+  final Color backgroundColor;
+  final Widget child;
+
+  @override
+  double get minExtent => _extent;
+
+  @override
+  double get maxExtent => _extent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: SizedBox.expand(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SearchBarHeaderDelegate oldDelegate) =>
+      backgroundColor != oldDelegate.backgroundColor ||
+      child != oldDelegate.child;
 }
