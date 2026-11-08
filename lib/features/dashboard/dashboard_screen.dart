@@ -23,6 +23,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   String _filterType = 'All'; // 'All', 'GET', 'GIVE'
+  String _sortType = 'balanceHighToLow';
+  bool _showAlertsOnly = false;
 
   @override
   void initState() {
@@ -99,12 +101,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          _buildSummaryCard(database),
-          _buildSearchBar(),
-          Expanded(child: _buildCustomerList(database)),
-        ],
+      body: StreamBuilder<List<Transaction>>(
+        stream: database.watchAllTransactions(),
+        builder: (context, transactionSnapshot) {
+          if (transactionSnapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Error loading customer alerts: ${transactionSnapshot.error}',
+                  style: const TextStyle(color: Color(0xFFEF4444)),
+                ),
+              ),
+            );
+          }
+          if (!transactionSnapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final transactions = transactionSnapshot.data!;
+          return Column(
+            children: [
+              _buildSummaryCard(database, transactions),
+              _buildSearchBar(),
+              Expanded(child: _buildCustomerList(database, transactions)),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showDialog(
@@ -122,7 +145,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSummaryCard(AppDatabase database) {
+  Widget _buildSummaryCard(
+    AppDatabase database,
+    List<Transaction> transactions,
+  ) {
     return StreamBuilder<List<Customer>>(
       stream: database.watchAllCustomers(),
       builder: (context, snapshot) {
@@ -201,6 +227,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
+        final customerAlerts = _getCustomerAlerts(transactions);
+        final excludedCustomerIds = snapshot.data!
+            .where((customer) => customer.isExcluded)
+            .map((customer) => customer.id)
+            .toSet();
+        final alertCustomerCount = customerAlerts.keys
+            .where((customerId) => !excludedCustomerIds.contains(customerId))
+            .length;
+        final languageCode = Provider.of<LanguageProvider>(
+          context,
+          listen: false,
+        ).locale.languageCode;
 
         return Container(
           margin: const EdgeInsets.all(16),
@@ -337,6 +375,103 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ],
               ),
+              if (alertCustomerCount > 0 || _showAlertsOnly) ...[
+                Divider(
+                  height: 1,
+                  color: isDark
+                      ? const Color(0xFF334155).withValues(alpha: 0.5)
+                      : const Color(0xFFE5E7EB),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _showAlertsOnly = !_showAlertsOnly;
+                      });
+                    },
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            constraints: const BoxConstraints(minWidth: 20),
+                            height: 20,
+                            padding: const EdgeInsets.symmetric(horizontal: 5),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFFF59E0B,
+                              ).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0xFFA76513),
+                              ),
+                            ),
+                            child: Text(
+                              alertCustomerCount.toString(),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFFBBF24),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              AppTranslations.get(
+                                languageCode,
+                                _showAlertsOnly
+                                    ? 'showing_customers_needing_attention'
+                                    : alertCustomerCount == 1
+                                    ? 'customer_needs_attention_label'
+                                    : 'customers_need_attention_label',
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFFFBBF24),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (_showAlertsOnly) ...[
+                            const SizedBox(width: 4),
+                            const Text(
+                              '·',
+                              style: TextStyle(
+                                color: Color(0xFFCBD5E1),
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              AppTranslations.get(
+                                languageCode,
+                                'show_all_short',
+                              ),
+                              style: const TextStyle(
+                                color: Color(0xFFCBD5E1),
+                                fontSize: 11,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -373,7 +508,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           suffixIcon: PopupMenuButton<String>(
             icon: Icon(
               Icons.filter_list,
-              color: _filterType == 'All'
+              color: _filterType == 'All' && _sortType == 'balanceHighToLow'
                   ? (Theme.of(context).brightness == Brightness.dark
                         ? const Color(0xFF94A3B8)
                         : const Color(0xFF9CA3AF))
@@ -381,78 +516,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             onSelected: (String value) {
               setState(() {
-                _filterType = value;
+                if (value.startsWith('sort:')) {
+                  _sortType = value.substring('sort:'.length);
+                } else {
+                  _filterType = value;
+                }
               });
             },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              PopupMenuItem<String>(
-                value: 'All',
-                child: Row(
-                  children: [
-                    if (_filterType == 'All')
-                      const Icon(
-                        Icons.check,
-                        size: 18,
-                        color: Color(0xFF4F46E5),
-                      )
-                    else
-                      const SizedBox(width: 18),
-                    const SizedBox(width: 8),
-                    const Text('All'),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'GET',
-                child: Row(
-                  children: [
-                    if (_filterType == 'GET')
-                      const Icon(
-                        Icons.check,
-                        size: 18,
-                        color: Color(0xFF4F46E5),
-                      )
-                    else
-                      const SizedBox(width: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppTranslations.get(
-                        Provider.of<LanguageProvider>(
-                          context,
-                          listen: false,
-                        ).locale.languageCode,
-                        'you_will_get',
-                      ),
+            itemBuilder: (BuildContext context) {
+              final languageCode = Provider.of<LanguageProvider>(
+                context,
+                listen: false,
+              ).locale.languageCode;
+              return <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  enabled: false,
+                  height: 32,
+                  child: Text(
+                    AppTranslations.get(languageCode, 'filter_customers'),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF6B7280),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              PopupMenuItem<String>(
-                value: 'GIVE',
-                child: Row(
-                  children: [
-                    if (_filterType == 'GIVE')
-                      const Icon(
-                        Icons.check,
-                        size: 18,
-                        color: Color(0xFF4F46E5),
-                      )
-                    else
-                      const SizedBox(width: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppTranslations.get(
-                        Provider.of<LanguageProvider>(
-                          context,
-                          listen: false,
-                        ).locale.languageCode,
-                        'you_will_give',
-                      ),
+                _buildFilterSortOption(
+                  'All',
+                  AppTranslations.get(languageCode, 'all_customers'),
+                  _filterType == 'All',
+                ),
+                _buildFilterSortOption(
+                  'GET',
+                  AppTranslations.get(languageCode, 'you_will_get'),
+                  _filterType == 'GET',
+                ),
+                _buildFilterSortOption(
+                  'GIVE',
+                  AppTranslations.get(languageCode, 'you_will_give'),
+                  _filterType == 'GIVE',
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem<String>(
+                  enabled: false,
+                  height: 32,
+                  child: Text(
+                    AppTranslations.get(languageCode, 'sort_by'),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF6B7280),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                _buildFilterSortOption(
+                  'sort:balanceHighToLow',
+                  AppTranslations.get(languageCode, 'sort_balance_high_to_low'),
+                  _sortType == 'balanceHighToLow',
+                ),
+                _buildFilterSortOption(
+                  'sort:balanceLowToHigh',
+                  AppTranslations.get(languageCode, 'sort_balance_low_to_high'),
+                  _sortType == 'balanceLowToHigh',
+                ),
+                _buildFilterSortOption(
+                  'sort:nameAToZ',
+                  AppTranslations.get(languageCode, 'sort_name_a_to_z'),
+                  _sortType == 'nameAToZ',
+                ),
+                _buildFilterSortOption(
+                  'sort:nameZToA',
+                  AppTranslations.get(languageCode, 'sort_name_z_to_a'),
+                  _sortType == 'nameZToA',
+                ),
+              ];
+            },
           ),
           filled: true,
           fillColor: Theme.of(context).brightness == Brightness.dark
@@ -484,7 +622,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildCustomerList(AppDatabase database) {
+  PopupMenuItem<String> _buildFilterSortOption(
+    String value,
+    String label,
+    bool selected,
+  ) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          if (selected)
+            const Icon(Icons.check, size: 18, color: Color(0xFF4F46E5))
+          else
+            const SizedBox(width: 18),
+          const SizedBox(width: 8),
+          Text(label),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomerList(
+    AppDatabase database,
+    List<Transaction> transactions,
+  ) {
     return StreamBuilder<List<Customer>>(
       stream: database.watchAllCustomers(),
       builder: (context, snapshot) {
@@ -493,6 +654,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         var customers = snapshot.data ?? [];
+        final customerAlerts = _getCustomerAlerts(transactions);
 
         // Apply type filter
         if (_filterType == 'GET') {
@@ -507,6 +669,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
               .where((c) => c.name.toLowerCase().contains(_searchQuery))
               .toList();
         }
+        if (_showAlertsOnly) {
+          customers = customers
+              .where((customer) => customerAlerts.containsKey(customer.id))
+              .toList();
+        }
+        customers.sort((a, b) {
+          final aHasBalance = a.currentBalance.abs() >= 0.01;
+          final bHasBalance = b.currentBalance.abs() >= 0.01;
+          final aGroup = !aHasBalance ? 2 : (a.isExcluded ? 1 : 0);
+          final bGroup = !bHasBalance ? 2 : (b.isExcluded ? 1 : 0);
+          final groupComparison = aGroup.compareTo(bGroup);
+          if (groupComparison != 0) return groupComparison;
+
+          final nameComparison = a.name.toLowerCase().compareTo(
+            b.name.toLowerCase(),
+          );
+          if (!aHasBalance) return nameComparison;
+
+          final balanceComparison = b.currentBalance.abs().compareTo(
+            a.currentBalance.abs(),
+          );
+          switch (_sortType) {
+            case 'balanceLowToHigh':
+              final amountComparison = a.currentBalance.abs().compareTo(
+                b.currentBalance.abs(),
+              );
+              return amountComparison != 0 ? amountComparison : nameComparison;
+            case 'nameAToZ':
+              return nameComparison != 0 ? nameComparison : balanceComparison;
+            case 'nameZToA':
+              final reverseNameComparison = b.name.toLowerCase().compareTo(
+                a.name.toLowerCase(),
+              );
+              return reverseNameComparison != 0
+                  ? reverseNameComparison
+                  : balanceComparison;
+            default:
+              return balanceComparison != 0
+                  ? balanceComparison
+                  : nameComparison;
+          }
+        });
 
         if (customers.isEmpty) {
           return Center(
@@ -516,7 +720,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Icon(Icons.people_outline, size: 64, color: Colors.grey[300]),
                 const SizedBox(height: 16),
                 Text(
-                  _searchQuery.isNotEmpty || _filterType != 'All'
+                  _searchQuery.isNotEmpty ||
+                          _filterType != 'All' ||
+                          _showAlertsOnly
                       ? AppTranslations.get(
                           Provider.of<LanguageProvider>(
                             context,
@@ -544,7 +750,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Row(
                 children: [
                   Text(
-                    '${customers.length} ${AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'customers_label')}',
+                    _showAlertsOnly
+                        ? '${customers.length} ${AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'customers_needing_attention')}'
+                        : '${customers.length} ${AppTranslations.get(Provider.of<LanguageProvider>(context).locale.languageCode, 'customers_label')}',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -561,7 +769,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 itemCount: customers.length,
                 itemBuilder: (context, index) {
                   final customer = customers[index];
-                  return _buildCustomerItem(customer);
+                  return _buildCustomerItem(
+                    customer,
+                    customerAlerts[customer.id] ?? const [],
+                  );
                 },
               ),
             ),
@@ -571,7 +782,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildCustomerItem(Customer customer) {
+  Map<String, List<_CustomerAlert>> _getCustomerAlerts(
+    List<Transaction> transactions,
+  ) {
+    final today = DateTime.now();
+    final startOfToday = DateTime(today.year, today.month, today.day);
+    final alertsByCustomer = <String, List<_CustomerAlert>>{};
+
+    for (final transaction in transactions) {
+      if (transaction.isPaid || transaction.isExcluded) continue;
+
+      final isInterest = transaction.isInterestEntry == true;
+      final isRecurring =
+          transaction.parentTransactionId != null &&
+          !transaction.isRecurringParent;
+      if (!isInterest && !isRecurring) continue;
+
+      final dueDate = DateTime(
+        transaction.date.year,
+        transaction.date.month,
+        transaction.date.day,
+      );
+      if (isInterest
+          ? dueDate.isAfter(startOfToday)
+          : !dueDate.isBefore(startOfToday)) {
+        continue;
+      }
+
+      alertsByCustomer
+          .putIfAbsent(transaction.customerId, () => [])
+          .add(
+            _CustomerAlert(
+              daysOverdue: startOfToday.difference(dueDate).inDays,
+            ),
+          );
+    }
+
+    return alertsByCustomer;
+  }
+
+  Widget _buildCustomerItem(Customer customer, List<_CustomerAlert> alerts) {
     final formatter = NumberFormat.currency(
       locale: 'en_IN',
       symbol: '₹',
@@ -583,8 +833,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final color = isZero
         ? const Color(0xFF6B7280)
         : (isGet ? const Color(0xFF10B981) : const Color(0xFFEF4444));
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final languageCode = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).locale.languageCode;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -712,6 +965,100 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ],
                           ],
                         ),
+                        if (alerts.isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          Builder(
+                            builder: (context) {
+                              final overdueCount = alerts
+                                  .where((alert) => alert.daysOverdue > 0)
+                                  .length;
+                              final dueTodayCount =
+                                  alerts.length - overdueCount;
+                              final hasOverdue = overdueCount > 0;
+                              final alertColor = hasOverdue
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFFF59E0B);
+                              final summary =
+                                  AppTranslations.get(
+                                    languageCode,
+                                    hasOverdue
+                                        ? 'alerts_overdue_count'
+                                        : 'alerts_due_today_only',
+                                  ).replaceFirst(
+                                    '{count}',
+                                    (hasOverdue ? overdueCount : dueTodayCount)
+                                        .toString(),
+                                  );
+
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: alertColor.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                        border: Border.all(
+                                          color: alertColor.withValues(
+                                            alpha: 0.55,
+                                          ),
+                                          width: 0.7,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              summary,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: alertColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (hasOverdue && dueTodayCount > 0) ...[
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        AppTranslations.get(
+                                          languageCode,
+                                          'alerts_due_today_count',
+                                        ).replaceFirst(
+                                          '{count}',
+                                          dueTodayCount.toString(),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: isDark
+                                              ? const Color(0xFF94A3B8)
+                                              : const Color(0xFF6B7280),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              );
+                            },
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -963,4 +1310,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _searchController.dispose();
     super.dispose();
   }
+}
+
+class _CustomerAlert {
+  final int daysOverdue;
+
+  const _CustomerAlert({required this.daysOverdue});
 }

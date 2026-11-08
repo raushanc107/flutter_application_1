@@ -1,0 +1,1195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>Customer Ledger | Khatabook</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --page: #0f172a;
+        --header: #1e293b;
+        --card: #172235;
+        --border: #243247;
+        --muted: #91a0b6;
+        --subtle: #68758a;
+        --text: #f8fafc;
+        --green: #10b981;
+        --red: #ff4d4f;
+        --purple: #4f46e5;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background: var(--page);
+        color: var(--text);
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      .app {
+        width: min(100%, 768px);
+        min-height: 100vh;
+        margin: 0 auto;
+        padding-bottom: 32px;
+      }
+
+      .status-bar {
+        height: 74px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: max(15px, env(safe-area-inset-top)) 30px 0;
+        background: var(--header);
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .status-icons {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-top: 2px;
+        color: #e2e8f0;
+      }
+
+      .signal {
+        display: flex;
+        gap: 2px;
+        align-items: flex-end;
+        height: 12px;
+      }
+
+      .signal i {
+        width: 3px;
+        border-radius: 2px;
+        background: #e2e8f0;
+      }
+
+      .signal i:nth-child(1) { height: 4px; opacity: .5; }
+      .signal i:nth-child(2) { height: 6px; opacity: .65; }
+      .signal i:nth-child(3) { height: 8px; opacity: .8; }
+      .signal i:nth-child(4) { height: 10px; }
+
+      .battery {
+        width: 25px;
+        height: 12px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 4px;
+        position: relative;
+      }
+
+      .battery::before {
+        content: "";
+        position: absolute;
+        inset: 2px;
+        border-radius: 1px;
+        background: #e2e8f0;
+      }
+
+      .battery::after {
+        content: "";
+        position: absolute;
+        width: 2px;
+        height: 5px;
+        top: 2px;
+        right: -4px;
+        border-radius: 0 2px 2px 0;
+        background: #94a3b8;
+      }
+
+      .topbar {
+        height: 74px;
+        padding: 0 clamp(16px, 4vw, 30px);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #334155;
+        background: var(--header);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 20px;
+        font-weight: 650;
+        letter-spacing: .1px;
+      }
+
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: #4540dc;
+      }
+
+      .icon-button {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 12px;
+        background: transparent;
+        color: #f8fafc;
+        cursor: pointer;
+      }
+
+      main {
+        padding: 16px clamp(16px, 4vw, 30px) 0;
+      }
+
+      .summary {
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 23px;
+        background: var(--card);
+      }
+
+      .net {
+        padding: 18px 16px 17px;
+        text-align: center;
+      }
+
+      .eyebrow {
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 650;
+        letter-spacing: 1.8px;
+      }
+
+      .net-amount {
+        margin-top: 5px;
+        color: var(--green);
+        font-size: 27px;
+        font-weight: 750;
+        letter-spacing: .2px;
+        line-height: 1.25;
+      }
+
+      .summary-break {
+        height: 1px;
+        background: #243247;
+      }
+
+      .totals {
+        display: grid;
+        grid-template-columns: 1fr 1px 1fr;
+        align-items: center;
+        min-height: 68px;
+      }
+
+      .total {
+        padding: 10px 8px;
+        text-align: center;
+      }
+
+      .total-label {
+        color: var(--subtle);
+        font-size: 11px;
+        letter-spacing: .5px;
+      }
+
+      .total-amount {
+        margin-top: 3px;
+        color: var(--green);
+        font-size: 19px;
+        font-weight: 650;
+      }
+
+      .total-amount.give {
+        color: var(--red);
+      }
+
+      .total-divider {
+        height: 32px;
+        background: #243247;
+      }
+
+      .alert-summary {
+        width: 100%;
+        min-height: 43px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 9px 14px;
+        border: 0;
+        border-top: 1px solid #243247;
+        background: transparent;
+        color: #fbbf24;
+        font-size: 12px;
+        font-weight: 650;
+        cursor: pointer;
+      }
+
+      .alert-summary:hover,
+      .alert-summary[aria-pressed="true"] {
+        background: #f59e0b12;
+      }
+
+      .alert-summary[hidden] {
+        display: none;
+      }
+
+      .alert-summary.no-alerts {
+        color: var(--muted);
+        cursor: default;
+      }
+
+      .alert-summary.no-alerts:hover {
+        background: transparent;
+      }
+
+      .alert-count {
+        min-width: 20px;
+        height: 20px;
+        display: inline-grid;
+        place-items: center;
+        padding: 0 5px;
+        border: 1px solid #a76513;
+        border-radius: 999px;
+        background: #f59e0b20;
+        font-size: 11px;
+      }
+
+      .search-wrap {
+        position: relative;
+        margin-top: 16px;
+      }
+
+      .search-box {
+        height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        padding: 0 14px;
+        border: 1px solid #35445a;
+        border-radius: 15px;
+        background: var(--header);
+        color: var(--muted);
+      }
+
+      .search-box:focus-within {
+        border-color: #7771ff;
+        box-shadow: 0 0 0 2px #4f46e533;
+      }
+
+      .search-box input {
+        flex: 1;
+        width: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--text);
+        font-size: 16px;
+      }
+
+      .search-box input::placeholder {
+        color: var(--muted);
+        opacity: 1;
+      }
+
+      .filter-button {
+        width: 32px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      .filter-menu {
+        position: absolute;
+        z-index: 3;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 190px;
+        max-height: calc(100dvh - 180px);
+        overflow-y: auto;
+        padding: 5px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #1e293b;
+        box-shadow: 0 14px 36px #0006;
+      }
+
+      .filter-menu[hidden] {
+        display: none;
+      }
+
+      .filter-section-label {
+        padding: 9px 10px 5px;
+        color: var(--subtle);
+        font-size: 10px;
+        font-weight: 750;
+        letter-spacing: 0.08em;
+      }
+
+      .filter-section-label:not(:first-child) {
+        margin-top: 4px;
+        border-top: 1px solid var(--border);
+      }
+
+      .filter-option {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: #e2e8f0;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .filter-option:hover,
+      .filter-option[aria-checked="true"] {
+        background: #334155;
+      }
+
+      .filter-option span {
+        width: 16px;
+        color: #a5b4fc;
+      }
+
+      .customer-heading {
+        margin: 17px 0 9px;
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+      }
+
+      .customer-list {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 11px;
+        padding-bottom: 112px;
+      }
+
+      .customer-card {
+        width: 100%;
+        min-width: 0;
+        min-height: 76px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 20px;
+        border: 1px solid var(--border);
+        border-radius: 23px;
+        background: var(--card);
+        text-align: left;
+        cursor: pointer;
+        transition: border-color .16s ease, transform .16s ease;
+      }
+
+      .customer-card:hover {
+        border-color: #3a4b64;
+        transform: translateY(-1px);
+      }
+
+      .avatar {
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: #34318a;
+        color: #8884ff;
+        font-size: 17px;
+        font-weight: 700;
+      }
+
+      .customer-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .customer-name {
+        overflow: hidden;
+        color: var(--text);
+        font-size: 16px;
+        font-weight: 620;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .customer-meta {
+        min-height: 19px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .customer-alerts {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 6px;
+        margin-top: 6px;
+      }
+
+      .customer-alert {
+        display: inline-flex;
+        align-items: center;
+        flex: 0 1 auto;
+        gap: 6px;
+        max-width: 100%;
+        padding: 4px 8px;
+        border: 1px solid #a76513;
+        border-radius: 999px;
+        background: #f59e0b14;
+        color: #fbbf24;
+        font-size: 10px;
+        font-weight: 650;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .customer-alert.high {
+        border-color: #9f3f46;
+        background: #ef44441a;
+        color: #ff7779;
+      }
+
+      .alert-extra {
+        color: var(--muted);
+        font-size: 10px;
+        white-space: nowrap;
+      }
+
+      .excluded {
+        padding: 2px 6px;
+        border: 1px solid #9a5c08;
+        border-radius: 5px;
+        background: #f59e0b20;
+        color: #f59e0b;
+        font-size: 9px;
+        font-weight: 750;
+        letter-spacing: .3px;
+        line-height: 1.25;
+      }
+
+      .balance {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        text-align: right;
+      }
+
+      .balance-amount {
+        display: block;
+        color: var(--green);
+        font-size: 17px;
+        font-weight: 750;
+        letter-spacing: .1px;
+      }
+
+      .balance-amount.negative {
+        color: var(--red);
+      }
+
+      .balance-amount.zero {
+        color: #8d9bb0;
+      }
+
+      .balance-label {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .empty-state {
+        padding: 36px 16px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .add-button {
+        position: fixed;
+        z-index: 2;
+        right: max(22px, calc((100vw - 708px) / 2 + 22px));
+        bottom: max(22px, env(safe-area-inset-bottom));
+        height: 54px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 20px;
+        border: 0;
+        border-radius: 20px;
+        background: #4f46e5;
+        box-shadow: 0 8px 24px #080c19aa;
+        color: white;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .add-button:hover {
+        background: #5b52f3;
+      }
+
+      dialog {
+        width: min(92vw, 420px);
+        padding: 0;
+        border: 1px solid #334155;
+        border-radius: 20px;
+        background: #172235;
+        color: var(--text);
+        box-shadow: 0 24px 80px #0008;
+      }
+
+      dialog::backdrop {
+        background: #050914bb;
+        backdrop-filter: blur(3px);
+      }
+
+      .dialog-content {
+        padding: 22px;
+      }
+
+      .dialog-title {
+        margin: 0 0 18px;
+        font-size: 19px;
+      }
+
+      .form-field {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 14px;
+        color: #cbd5e1;
+        font-size: 13px;
+      }
+
+      .form-field input {
+        width: 100%;
+        height: 44px;
+        padding: 0 12px;
+        border: 1px solid #35445a;
+        border-radius: 10px;
+        outline: none;
+        background: #1e293b;
+        color: var(--text);
+      }
+
+      .form-field input:focus {
+        border-color: #7771ff;
+      }
+
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin: 8px 0 18px;
+        color: #cbd5e1;
+        font-size: 13px;
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 9px;
+      }
+
+      .dialog-actions button,
+      .ledger-action {
+        min-height: 40px;
+        padding: 0 14px;
+        border: 1px solid #35445a;
+        border-radius: 10px;
+        background: transparent;
+        color: #e2e8f0;
+        cursor: pointer;
+      }
+
+      .dialog-actions .primary,
+      .ledger-action {
+        border-color: #4f46e5;
+        background: #4f46e5;
+        color: white;
+        font-weight: 650;
+      }
+
+      .ledger-summary {
+        display: flex;
+        justify-content: space-between;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #1e293b;
+      }
+
+      .ledger-alerts {
+        margin-top: 14px;
+        padding: 12px;
+        border: 1px solid #a76513;
+        border-radius: 12px;
+        background: #f59e0b14;
+      }
+
+      .ledger-alerts.high {
+        border-color: #9f3f46;
+        background: #ef44441a;
+      }
+
+      .ledger-alerts[hidden] {
+        display: none;
+      }
+
+      .ledger-alert-heading {
+        margin-bottom: 5px;
+        color: #fbbf24;
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: .8px;
+      }
+
+      .ledger-alerts.high .ledger-alert-heading {
+        color: #ff7779;
+      }
+
+      .ledger-alert-text {
+        color: #e2e8f0;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .ledger-note {
+        margin: 14px 0 18px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 420px) {
+        .status-bar {
+          height: 66px;
+          padding-inline: 22px;
+        }
+
+        .topbar {
+          height: 66px;
+        }
+
+        .customer-card {
+          gap: 12px;
+          padding-inline: 16px;
+        }
+
+        .avatar {
+          flex-basis: 42px;
+        }
+
+        .balance-amount {
+          font-size: 16px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: .01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="status-bar" aria-hidden="true">
+        <span>9:56</span>
+        <div class="status-icons">
+          <span class="signal"><i></i><i></i><i></i><i></i></span>
+          <svg width="19" height="15" viewBox="0 0 19 15" fill="none">
+            <path d="M1 5.2C5.9 1.1 13.1 1.1 18 5.2L9.5 14 1 5.2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+          <span class="battery"></span>
+        </div>
+      </div>
+
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none">
+              <path d="M5 18.5V6.8l14-2v13.8l-14 2Z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="m6.5 15.8 4-4 3 2 5-6M15.5 7.8h3v3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span>Khatabook</span>
+        </div>
+        <button class="icon-button" id="settingsButton" aria-label="Settings" title="Settings">
+          <svg width="27" height="27" viewBox="0 0 24 24" fill="none">
+            <path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Z" stroke="currentColor" stroke-width="1.8"/>
+            <path d="m19.4 13.5 1.3 1-1.6 2.8-1.6-.6a7.8 7.8 0 0 1-1.7 1l-.3 1.7h-3.2l-.3-1.7a7.8 7.8 0 0 1-1.7-1l-1.6.6-1.6-2.8 1.3-1a7 7 0 0 1 0-2l-1.3-1 1.6-2.8 1.6.6a7.8 7.8 0 0 1 1.7-1l.3-1.7h3.2l.3 1.7a7.8 7.8 0 0 1 1.7 1l1.6-.6 1.6 2.8-1.3 1a7 7 0 0 1 0 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <main>
+        <section class="summary" aria-label="Customer balances">
+          <div class="net">
+            <div class="eyebrow">NET BALANCE</div>
+            <div class="net-amount" id="netBalance">₹2,09,100</div>
+          </div>
+          <div class="summary-break"></div>
+          <div class="totals">
+            <div class="total">
+              <div class="total-label">YOU'LL GET</div>
+              <div class="total-amount" id="getTotal">₹2,09,100</div>
+            </div>
+            <div class="total-divider"></div>
+            <div class="total">
+              <div class="total-label">YOU'LL GIVE</div>
+              <div class="total-amount give" id="giveTotal">₹0</div>
+            </div>
+          </div>
+          <button class="alert-summary" id="alertSummary" type="button" aria-pressed="false">
+            <span class="alert-count" id="alertCount">2</span>
+            <span id="alertSummaryText">customers need attention</span>
+          </button>
+        </section>
+
+        <div class="search-wrap">
+          <label class="search-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="2"/>
+              <path d="m16 16 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <input id="search" type="search" placeholder="Search customers..." autocomplete="off" />
+            <button class="filter-button" id="filterButton" aria-label="Filter and sort customers" aria-expanded="false">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M3 6h18M6.5 12h11M10 18h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </label>
+          <div class="filter-menu" id="filterMenu" role="menu" hidden>
+            <div class="filter-section-label">FILTER CUSTOMERS</div>
+            <button class="filter-option" data-filter="all" role="menuitemradio" aria-checked="true"><span>✓</span>All customers</button>
+            <button class="filter-option" data-filter="get" role="menuitemradio" aria-checked="false"><span></span>You'll get</button>
+            <button class="filter-option" data-filter="give" role="menuitemradio" aria-checked="false"><span></span>You'll give</button>
+            <div class="filter-section-label">SORT BY</div>
+            <button class="filter-option sort-option" data-sort="balance-desc" role="menuitemradio" aria-checked="true"><span>✓</span>Balance: high to low</button>
+            <button class="filter-option sort-option" data-sort="balance-asc" role="menuitemradio" aria-checked="false"><span></span>Balance: low to high</button>
+            <button class="filter-option sort-option" data-sort="name-asc" role="menuitemradio" aria-checked="false"><span></span>Name: A to Z</button>
+            <button class="filter-option sort-option" data-sort="name-desc" role="menuitemradio" aria-checked="false"><span></span>Name: Z to A</button>
+          </div>
+        </div>
+
+        <h1 class="customer-heading" id="customerCount">10 CUSTOMERS</h1>
+        <section class="customer-list" id="customerList" aria-label="Customers"></section>
+      </main>
+    </div>
+
+    <button class="add-button" id="addButton">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="17.5" cy="7" r="3" stroke="currentColor" stroke-width="1.7"/>
+        <path d="M13.5 20c.5-2.2 2-3.4 4-3.4s3.5 1.2 4 3.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+      <span>Add Customer</span>
+    </button>
+
+    <dialog id="customerDialog">
+      <form class="dialog-content" id="customerForm">
+        <h2 class="dialog-title">Add Customer</h2>
+        <label class="form-field">Customer name
+          <input id="customerName" name="name" required placeholder="Enter customer name" />
+        </label>
+        <label class="form-field">Phone number
+          <input id="customerPhone" name="phone" inputmode="tel" placeholder="Optional" />
+        </label>
+        <label class="checkbox-row">
+          <input id="customerExcluded" type="checkbox" />
+          Exclude from net balance
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="cancelAdd">Cancel</button>
+          <button class="primary" type="submit">Add customer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="ledgerDialog">
+      <div class="dialog-content">
+        <h2 class="dialog-title" id="ledgerTitle">Customer ledger</h2>
+        <div class="ledger-summary">
+          <span>Current balance</span>
+          <strong id="ledgerBalance"></strong>
+        </div>
+        <div class="ledger-alerts" id="ledgerAlerts" hidden>
+          <div class="ledger-alert-heading">NEEDS ATTENTION</div>
+          <div class="ledger-alert-text" id="ledgerAlertText"></div>
+        </div>
+        <p class="ledger-note">Your customer ledger will show transactions, notes, and balance history here.</p>
+        <div class="dialog-actions">
+          <button type="button" id="closeLedger">Close</button>
+          <button class="primary" type="button" id="addTransaction">Add transaction</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script>
+      const customers = [
+        {
+          name: "Ashish",
+          balance: 58000,
+          date: "31 Oct 2026",
+          alerts: [{
+            severity: "high",
+            label: "Interest overdue · 12 days",
+            detail: "Interest payment is overdue by 12 days. Review the interest entry and follow up with the customer.",
+          }],
+        },
+        {
+          name: "Ketan",
+          balance: 136000,
+          date: "08 Nov 2026",
+          alerts: [
+            {
+              severity: "high",
+              label: "Interest overdue · 12 days",
+              detail: "An interest payment is overdue by 12 days. Review the interest entry and follow up with the customer.",
+            },
+            {
+              severity: "medium",
+              label: "Interest due today",
+              detail: "Another interest payment is due today. Confirm whether it has been collected and update the ledger.",
+            },
+            {
+              severity: "high",
+              label: "Recurring overdue · 5 days",
+              detail: "A recurring payment is overdue by 5 days. Check the missed installment and follow up with the customer.",
+            },
+            {
+              severity: "medium",
+              label: "Recurring due today",
+              detail: "A recurring payment is due today. Confirm whether it has been collected and update the ledger.",
+            },
+          ],
+        },
+        { name: "Khushi", balance: 442, date: "31 Oct 2026", excluded: true },
+        {
+          name: "Dharmendar jii",
+          balance: 157560,
+          date: "08 Nov 2026",
+          excluded: true,
+          alerts: [{
+            severity: "medium",
+            label: "Recurring payment missed",
+            detail: "A scheduled recurring payment was not recorded. Check the latest installment and update the ledger.",
+          }],
+        },
+        { name: "Ravi", balance: 0, date: "15 Jul 2026" },
+        { name: "Priya", balance: 15100, date: "24 Oct 2026" },
+        { name: "Meera", balance: 0, date: "08 Oct 2026" },
+        { name: "Rahul", balance: 0, date: "30 Sep 2026" },
+        { name: "Pooja", balance: 0, date: "20 Sep 2026" },
+        { name: "Aman", balance: 0, date: "12 Aug 2026" },
+      ];
+
+      const currency = new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0,
+      });
+      const list = document.querySelector("#customerList");
+      const search = document.querySelector("#search");
+      const filterMenu = document.querySelector("#filterMenu");
+      let activeFilter = "all";
+      let activeSort = "balance-desc";
+      let alertsOnly = false;
+
+      function updateSummary() {
+        const included = customers.filter((customer) => !customer.excluded);
+        const get = included.reduce((sum, customer) => sum + Math.max(customer.balance, 0), 0);
+        const give = included.reduce((sum, customer) => sum + Math.max(-customer.balance, 0), 0);
+        document.querySelector("#getTotal").textContent = currency.format(get);
+        document.querySelector("#giveTotal").textContent = currency.format(give);
+        document.querySelector("#netBalance").textContent = currency.format(get - give);
+        const alertCustomerCount = customers.filter(
+          (customer) => !customer.excluded && customer.alerts?.length,
+        ).length;
+        const alertSummary = document.querySelector("#alertSummary");
+        alertSummary.hidden = alertCustomerCount === 0;
+        alertSummary.classList.toggle("no-alerts", alertCustomerCount === 0);
+        alertSummary.setAttribute("aria-pressed", String(alertsOnly));
+        document.querySelector("#alertCount").textContent = String(alertCustomerCount);
+        document.querySelector("#alertSummaryText").textContent =
+          alertCustomerCount === 1 ? "customer needs attention" : "customers need attention";
+      }
+
+      function updateAlertSummaryState() {
+        const alertSummary = document.querySelector("#alertSummary");
+        alertSummary.setAttribute("aria-pressed", String(alertsOnly));
+        document.querySelector("#alertSummaryText").textContent = alertsOnly
+          ? "showing customers needing attention · show all"
+          : "customers need attention";
+      }
+
+      function makeCard(customer) {
+        const card = document.createElement("button");
+        card.className = "customer-card";
+        card.type = "button";
+        card.setAttribute("aria-label", `${customer.name}, balance ${currency.format(Math.abs(customer.balance))}`);
+
+        const avatar = document.createElement("span");
+        avatar.className = "avatar";
+        avatar.textContent = customer.name.trim().charAt(0).toUpperCase() || "?";
+
+        const info = document.createElement("span");
+        info.className = "customer-info";
+        const name = document.createElement("span");
+        name.className = "customer-name";
+        name.textContent = customer.name;
+        const meta = document.createElement("span");
+        meta.className = "customer-meta";
+        const date = document.createElement("span");
+        date.textContent = customer.date;
+        meta.append(date);
+        if (customer.excluded) {
+          const badge = document.createElement("span");
+          badge.className = "excluded";
+          badge.textContent = "EXCLUDED";
+          meta.append(badge);
+        }
+        info.append(name, meta);
+        if (customer.alerts?.length) {
+          const alerts = document.createElement("span");
+          alerts.className = "customer-alerts";
+          const overdueCount = customer.alerts.filter(
+            (alert) => alert.severity === "high",
+          ).length;
+          const dueTodayCount = customer.alerts.length - overdueCount;
+          const hasOverdue = overdueCount > 0;
+          const badge = document.createElement("span");
+          badge.className = `customer-alert${hasOverdue ? " high" : ""}`;
+          const summary = document.createElement("span");
+          summary.textContent = hasOverdue
+            ? `${overdueCount} overdue`
+            : `${dueTodayCount} due today`;
+          badge.append(summary);
+          alerts.append(badge);
+          if (hasOverdue && dueTodayCount > 0) {
+            const due = document.createElement("span");
+            due.className = "alert-extra";
+            due.textContent = `+ ${dueTodayCount} due today`;
+            alerts.append(due);
+          }
+          info.append(alerts);
+        }
+
+        const balance = document.createElement("span");
+        balance.className = "balance";
+        const amount = document.createElement("span");
+        amount.className = "balance-amount";
+        amount.textContent = currency.format(Math.abs(customer.balance));
+        const label = document.createElement("span");
+        label.className = "balance-label";
+        if (customer.balance < 0) {
+          amount.classList.add("negative");
+          label.textContent = "You'll Give";
+        } else if (customer.balance > 0) {
+          label.textContent = "You'll Get";
+        } else {
+          amount.classList.add("zero");
+          label.textContent = "No Due";
+        }
+        balance.append(amount, label);
+        card.append(avatar, info, balance);
+        card.addEventListener("click", () => openLedger(customer));
+        return card;
+      }
+
+      function renderCustomers() {
+        const query = search.value.trim().toLocaleLowerCase();
+        const visible = customers.filter((customer) => {
+          const matchesQuery = customer.name.toLocaleLowerCase().includes(query);
+          const matchesFilter = activeFilter === "all" ||
+            (activeFilter === "get" && customer.balance > 0) ||
+            (activeFilter === "give" && customer.balance < 0);
+          const matchesAlerts =
+            !alertsOnly || Boolean(customer.alerts?.length);
+          return matchesQuery && matchesFilter && matchesAlerts;
+        });
+        visible.sort((a, b) => {
+          const aHasBalance = Math.abs(a.balance) >= 0.01;
+          const bHasBalance = Math.abs(b.balance) >= 0.01;
+          const aGroup = !aHasBalance ? 2 : (a.excluded ? 1 : 0);
+          const bGroup = !bHasBalance ? 2 : (b.excluded ? 1 : 0);
+          if (aGroup !== bGroup) return aGroup - bGroup;
+
+          const balanceComparison =
+            Math.abs(b.balance) - Math.abs(a.balance);
+          const nameComparison = a.name.localeCompare(b.name);
+          if (!aHasBalance) return nameComparison;
+
+          switch (activeSort) {
+            case "balance-asc":
+              return Math.abs(a.balance) - Math.abs(b.balance) ||
+                nameComparison;
+            case "name-asc":
+              return nameComparison || balanceComparison;
+            case "name-desc":
+              return b.name.localeCompare(a.name) || balanceComparison;
+            default:
+              return balanceComparison || nameComparison;
+          }
+        });
+        document.querySelector("#customerCount").textContent = alertsOnly
+          ? `${visible.length} CUSTOMERS NEED ATTENTION`
+          : `${visible.length} CUSTOMERS`;
+        list.replaceChildren();
+        if (visible.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "No customers found";
+          list.append(empty);
+          return;
+        }
+        visible.forEach((customer) => list.append(makeCard(customer)));
+      }
+
+      function openLedger(customer) {
+        document.querySelector("#ledgerTitle").textContent = customer.name;
+        document.querySelector("#ledgerBalance").textContent = currency.format(Math.abs(customer.balance));
+        document.querySelector("#ledgerBalance").style.color =
+          customer.balance < 0 ? "var(--red)" : "var(--green)";
+        const alerts = document.querySelector("#ledgerAlerts");
+        const alertText = document.querySelector("#ledgerAlertText");
+        if (customer.alerts?.length) {
+          const firstAlert = customer.alerts[0];
+          alerts.hidden = false;
+          alerts.classList.toggle("high", firstAlert.severity === "high");
+          alertText.textContent = customer.alerts
+            .map((alert) => `${alert.label}: ${alert.detail}`)
+            .join(" ");
+        } else {
+          alerts.hidden = true;
+          alerts.classList.remove("high");
+          alertText.textContent = "";
+        }
+        document.querySelector(".ledger-note").textContent =
+          "Your customer ledger will show transactions, notes, and balance history here.";
+        document.querySelector("#ledgerDialog").showModal();
+      }
+
+      search.addEventListener("input", renderCustomers);
+      document.querySelector("#alertSummary").addEventListener("click", () => {
+        alertsOnly = !alertsOnly;
+        updateAlertSummaryState();
+        renderCustomers();
+        document.querySelector("#customerCount").scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
+      document.querySelector("#filterButton").addEventListener("click", () => {
+        const willOpen = filterMenu.hidden;
+        filterMenu.hidden = !willOpen;
+        document.querySelector("#filterButton").setAttribute("aria-expanded", String(willOpen));
+      });
+      document.querySelectorAll(".filter-option").forEach((option) => {
+        option.addEventListener("click", () => {
+          if (option.dataset.filter) {
+            activeFilter = option.dataset.filter;
+          } else {
+            activeSort = option.dataset.sort;
+          }
+          document.querySelectorAll(".filter-option").forEach((item) => {
+            const selected = item.dataset.filter
+              ? item.dataset.filter === activeFilter
+              : item.dataset.sort === activeSort;
+            item.setAttribute("aria-checked", String(selected));
+            item.querySelector("span").textContent = selected ? "✓" : "";
+          });
+          filterMenu.hidden = true;
+          document.querySelector("#filterButton").setAttribute("aria-expanded", "false");
+          renderCustomers();
+        });
+      });
+      document.addEventListener("click", (event) => {
+        if (!event.target.closest(".search-wrap")) {
+          filterMenu.hidden = true;
+          document.querySelector("#filterButton").setAttribute("aria-expanded", "false");
+        }
+      });
+
+      const customerDialog = document.querySelector("#customerDialog");
+      document.querySelector("#addButton").addEventListener("click", () => customerDialog.showModal());
+      document.querySelector("#cancelAdd").addEventListener("click", () => customerDialog.close());
+      document.querySelector("#customerForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const name = document.querySelector("#customerName").value.trim();
+        if (!name) return;
+        customers.unshift({
+          name,
+          balance: 0,
+          date: new Intl.DateTimeFormat("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          }).format(new Date()),
+          phone: document.querySelector("#customerPhone").value.trim(),
+          excluded: document.querySelector("#customerExcluded").checked,
+        });
+        event.currentTarget.reset();
+        customerDialog.close();
+        updateSummary();
+        renderCustomers();
+      });
+      document.querySelector("#closeLedger").addEventListener("click", () => {
+        document.querySelector("#ledgerDialog").close();
+      });
+      document.querySelector("#addTransaction").addEventListener("click", () => {
+        document.querySelector(".ledger-note").textContent =
+          "Transaction entry is part of the customer ledger flow and is not included in this list prototype.";
+      });
+      document.querySelector("#settingsButton").addEventListener("click", () => {
+        document.querySelector("#ledgerTitle").textContent = "Settings";
+        document.querySelector("#ledgerBalance").textContent = "Prototype preview";
+        document.querySelector("#ledgerBalance").style.color = "var(--muted)";
+        document.querySelector("#ledgerAlerts").hidden = true;
+        document.querySelector("#ledgerAlerts").classList.remove("high");
+        document.querySelector(".ledger-note").textContent =
+          "The finished screen can connect this control to the existing settings page.";
+        document.querySelector("#ledgerDialog").showModal();
+      });
+
+      updateSummary();
+      renderCustomers();
+    </script>
+  </body>
+</html>
