@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/database/database.dart';
@@ -23,40 +25,11 @@ import 'package:workmanager/workmanager.dart';
 import 'core/services/background_backup_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Workmanager for background tasks (Mobile only)
-  if (!kIsWeb) {
-    Workmanager().initialize(
-      callbackDispatcher, // The top level function, aka callbackDispatcher
-      isInDebugMode:
-          false, // If enabled it will post a notification whenever the task is running
-    );
-  }
-
   final database = AppDatabase(db_connection.connect());
-
-  // Check for interest on startup
-  try {
-    final interestService = InterestService(database);
-    await interestService.checkAndGenerateInterest();
-  } catch (e) {
-    debugPrint('Error generating interest: $e');
-  }
-
-  // Check for recurring transactions
-  try {
-    await RecurringService.checkAndGenerateDueTransactions(database);
-  } catch (e) {
-    debugPrint('Error generating recurring transactions: $e');
-  }
-  await database.recalculateAllBalances();
-
-  // Initialize Backup Services
   final authService = GoogleDriveAuthService();
-  await authService.init();
-
   final backupService = BackupService(database);
   final storageService = GoogleDriveStorageService(authService);
   final backupManager = BackupManager(
@@ -64,7 +37,6 @@ void main() async {
     storageService,
     authService,
   );
-  await backupManager.init();
 
   runApp(
     MultiProvider(
@@ -87,6 +59,58 @@ void main() async {
       child: const KhatabookApp(),
     ),
   );
+
+  unawaited(_initializeStartupServices(database, authService, backupManager));
+}
+
+Future<void> _initializeStartupServices(
+  AppDatabase database,
+  GoogleDriveAuthService authService,
+  BackupManager backupManager,
+) async {
+  if (!kIsWeb) {
+    try {
+      await Workmanager().initialize(callbackDispatcher);
+    } catch (e, stack) {
+      debugPrint('Error initializing background backup tasks: $e');
+      debugPrint(stack.toString());
+    }
+  }
+
+  try {
+    await InterestService(database).checkAndGenerateInterest();
+  } catch (e, stack) {
+    debugPrint('Error generating interest: $e');
+    debugPrint(stack.toString());
+  }
+
+  try {
+    await RecurringService.checkAndGenerateDueTransactions(database);
+  } catch (e, stack) {
+    debugPrint('Error generating recurring transactions: $e');
+    debugPrint(stack.toString());
+  }
+
+  try {
+    await database.recalculateAllBalances();
+  } catch (e, stack) {
+    debugPrint('Error recalculating customer balances: $e');
+    debugPrint(stack.toString());
+  }
+
+  try {
+    await authService.init();
+  } catch (e, stack) {
+    debugPrint('Error initializing Google Drive authentication: $e');
+    debugPrint(stack.toString());
+  }
+
+  try {
+    await backupManager.init();
+  } catch (e, stack) {
+    debugPrint('Error initializing backup manager: $e');
+    debugPrint(stack.toString());
+  }
 }
 
 class KhatabookApp extends StatelessWidget {
