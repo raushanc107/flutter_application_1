@@ -35,6 +35,139 @@ void main() {
     await database.close();
   });
 
+  testWidgets('ledger tabs filter normal and advance transactions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1100);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final now = DateTime.now();
+    final interestDate = DateTime(now.year, now.month, now.day - 1, 9);
+    final recurringDate = DateTime(now.year, now.month, now.day - 2, 10, 30);
+    const customerId = 'ledger-filter-customer';
+
+    await database.insertCustomer(
+      const CustomersCompanion(
+        id: Value(customerId),
+        name: Value('Filter Customer'),
+        phoneNumber: Value(''),
+      ),
+    );
+    await database.insertTransaction(
+      TransactionsCompanion(
+        id: const Value('ledger-filter-normal'),
+        customerId: const Value(customerId),
+        amount: const Value(500),
+        type: const Value('GOT'),
+        date: Value(now),
+        notes: const Value('Cash transaction'),
+      ),
+    );
+    await database.insertTransaction(
+      TransactionsCompanion(
+        id: const Value('ledger-filter-interest'),
+        customerId: const Value(customerId),
+        amount: const Value(1000),
+        type: const Value('GAVE'),
+        date: Value(interestDate),
+        notes: const Value('Interest loan'),
+        interestRate: const Value(1),
+        interestPeriod: const Value('MONTHLY'),
+        lastInterestCalculatedDate: Value(now),
+      ),
+    );
+    await database.insertTransaction(
+      TransactionsCompanion(
+        id: const Value('ledger-filter-recurring'),
+        customerId: const Value(customerId),
+        amount: const Value(0),
+        type: const Value('GAVE'),
+        date: Value(recurringDate),
+        notes: const Value('Monthly rent'),
+        isRecurringParent: const Value(true),
+      ),
+    );
+    await database.insertRecurringTransaction(
+      RecurringTransactionsCompanion(
+        id: const Value('ledger-filter-recurring-config'),
+        customerId: const Value(customerId),
+        amount: const Value(2000),
+        type: const Value('GAVE'),
+        frequency: const Value('MONTHLY'),
+        startDate: Value(recurringDate),
+        note: const Value('Monthly rent'),
+        lastGeneratedDate: Value(recurringDate),
+        linkedTransactionId: const Value('ledger-filter-recurring'),
+      ),
+    );
+    final customer = await database.getCustomerById(customerId);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<AppDatabase>.value(value: database),
+          ChangeNotifierProvider(create: (_) => LanguageProvider()),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark(),
+          home: LedgerScreen(customer: customer!),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cash transaction'), findsOneWidget);
+    expect(find.text('Interest loan'), findsOneWidget);
+    expect(find.text('Monthly rent'), findsOneWidget);
+    expect(find.text('YOU GOT ₹'), findsOneWidget);
+    expect(
+      find.text(DateFormat('hh:mm a').format(interestDate)),
+      findsOneWidget,
+    );
+    expect(
+      find.text(DateFormat('hh:mm a').format(recurringDate)),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.percent), findsOneWidget);
+    expect(find.byIcon(Icons.repeat), findsOneWidget);
+    for (final transactionId in [
+      'ledger-filter-interest',
+      'ledger-filter-recurring',
+    ]) {
+      final date = tester.getRect(
+        find.byKey(ValueKey('special-date-day-$transactionId')),
+      );
+      final badge = tester.getRect(
+        find.byKey(ValueKey('special-date-badge-$transactionId')),
+      );
+      expect(date.overlaps(badge), isFalse);
+    }
+
+    await tester.tap(find.byKey(const ValueKey('ledger-filter-normal')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cash transaction'), findsOneWidget);
+    expect(find.text('Interest loan'), findsNothing);
+    expect(find.text('Monthly rent'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('ledger-filter-advance')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cash transaction'), findsNothing);
+    expect(find.text('Interest loan'), findsOneWidget);
+    expect(find.text('Monthly rent'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('ledger-filter-all')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cash transaction'), findsOneWidget);
+    expect(find.text('Interest loan'), findsOneWidget);
+    expect(find.text('Monthly rent'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
+  });
+
   testWidgets(
     'interest entry shows due summary and paid action in ledger card',
     (tester) async {
@@ -119,7 +252,13 @@ void main() {
       expect(find.byIcon(Icons.percent), findsOneWidget);
       expect(find.textContaining('Interest due'), findsNWidgets(2));
       expect(find.text('Mark as Paid'), findsOneWidget);
-      expect(find.text('Record payment'), findsOneWidget);
+      expect(find.text('YOU GOT ₹'), findsOneWidget);
+      expect(
+        find.text(
+          DateFormat('hh:mm a').format(now.subtract(const Duration(days: 40))),
+        ),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('Loan'));
       await tester.pumpAndSettle();
@@ -262,6 +401,12 @@ void main() {
     );
     expect(find.text('Monthly Rent'), findsOneWidget);
     expect(find.text('₹3,000'), findsWidgets);
+    expect(
+      find.text(
+        DateFormat('hh:mm a').format(now.subtract(const Duration(days: 40))),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Monthly Rent'));
     await tester.pumpAndSettle();

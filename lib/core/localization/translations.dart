@@ -91,6 +91,10 @@ class AppTranslations {
       'growth': 'growth',
 
       // Ledger
+      'transaction_filter_all': 'All',
+      'transaction_filter_normal': 'Normal',
+      'transaction_filter_advance': 'Advance',
+      'no_filtered_transactions': 'No transactions found.',
       'ledger_get': 'You\'ll Get',
       'ledger_give': 'You\'ll Give',
       'record_payment': 'Record payment',
@@ -273,6 +277,10 @@ class AppTranslations {
       'growth': 'वृद्धि',
 
       // Ledger
+      'transaction_filter_all': 'सभी',
+      'transaction_filter_normal': 'सामान्य',
+      'transaction_filter_advance': 'एडवांस',
+      'no_filtered_transactions': 'कोई लेनदेन नहीं मिला।',
       'ledger_get': 'आपको मिलेंगे',
       'ledger_give': 'आपको देने हैं',
       'record_payment': 'भुगतान दर्ज करें',
@@ -453,6 +461,10 @@ class AppTranslations {
       'growth': 'growth',
 
       // Ledger
+      'transaction_filter_all': 'Sabhi',
+      'transaction_filter_normal': 'Normal',
+      'transaction_filter_advance': 'Advance',
+      'no_filtered_transactions': 'Koi transaction nahi mila.',
       'ledger_get': 'Aap Lenge',
       'ledger_give': 'Aap Denge',
       'record_payment': 'Payment record karein',

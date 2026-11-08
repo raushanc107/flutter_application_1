@@ -18,6 +18,8 @@ import 'pdf_config_dialog.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 
+enum _LedgerTransactionFilter { all, normal, advance }
+
 class LedgerScreen extends StatefulWidget {
   final Customer customer;
 
@@ -30,6 +32,7 @@ class LedgerScreen extends StatefulWidget {
 class _LedgerScreenState extends State<LedgerScreen> {
   late Customer _currentCustomer;
   final Map<String, bool> _expandedSpecialCards = {};
+  _LedgerTransactionFilter _transactionFilter = _LedgerTransactionFilter.all;
 
   @override
   void initState() {
@@ -553,6 +556,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             children: [
               _buildBalanceSummary(context, allTransactions),
               _buildReminderBar(context),
+              _buildTransactionFilterTabs(),
               SizedBox(
                 height: 180,
                 child: Center(
@@ -583,6 +587,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
           }
         }
 
+        final filteredTransactions = primaryTransactions.where((transaction) {
+          if (_transactionFilter == _LedgerTransactionFilter.all) return true;
+          final associatedTransactions = interestMap[transaction.id] ?? [];
+          final isOrdinaryTransaction =
+              !transaction.isRecurringParent &&
+              !(transaction.interestRate != null &&
+                  transaction.interestRate! > 0) &&
+              associatedTransactions.isEmpty;
+          return _transactionFilter == _LedgerTransactionFilter.normal
+              ? isOrdinaryTransaction
+              : !isOrdinaryTransaction;
+        }).toList();
+
         final entries =
             <
               ({
@@ -603,7 +620,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         }
 
         DateTime? previousMonth;
-        for (final transaction in primaryTransactions) {
+        for (final transaction in filteredTransactions) {
           final month = DateTime(transaction.date.year, transaction.date.month);
           if (previousMonth == null ||
               month.year != previousMonth.year ||
@@ -639,14 +656,30 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
         return ListView.builder(
           padding: const EdgeInsets.only(bottom: 100),
-          itemCount: entries.length + 2,
+          itemCount: entries.isEmpty ? 4 : entries.length + 3,
           itemBuilder: (context, index) {
             if (index == 0) {
               return _buildBalanceSummary(context, allTransactions);
             }
             if (index == 1) return _buildReminderBar(context);
+            if (index == 2) return _buildTransactionFilterTabs();
+            if (entries.isEmpty) {
+              return SizedBox(
+                height: 180,
+                child: Center(
+                  child: Text(
+                    AppTranslations.get(
+                      Provider.of<LanguageProvider>(
+                        context,
+                      ).locale.languageCode,
+                      'no_filtered_transactions',
+                    ),
+                  ),
+                ),
+              );
+            }
 
-            final entry = entries[index - 2];
+            final entry = entries[index - 3];
             final month = entry.month;
             if (month != null) return _buildMonthSeparator(month);
 
@@ -665,6 +698,84 @@ class _LedgerScreenState extends State<LedgerScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildTransactionFilterTabs() {
+    final languageCode = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).locale.languageCode;
+    final filters = [
+      (
+        filter: _LedgerTransactionFilter.all,
+        label: AppTranslations.get(languageCode, 'transaction_filter_all'),
+      ),
+      (
+        filter: _LedgerTransactionFilter.normal,
+        label: AppTranslations.get(languageCode, 'transaction_filter_normal'),
+      ),
+      (
+        filter: _LedgerTransactionFilter.advance,
+        label: AppTranslations.get(languageCode, 'transaction_filter_advance'),
+      ),
+    ];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      key: const ValueKey('ledger-transaction-filters'),
+      margin: const EdgeInsets.fromLTRB(12, 2, 12, 6),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE5E7EB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? const Color(0xFF243247) : const Color(0xFFD1D5DB),
+        ),
+      ),
+      child: Row(
+        children: [
+          for (final item in filters)
+            Expanded(
+              child: Semantics(
+                button: true,
+                selected: _transactionFilter == item.filter,
+                child: InkWell(
+                  key: ValueKey('ledger-filter-${item.filter.name}'),
+                  borderRadius: BorderRadius.circular(9),
+                  onTap: () {
+                    if (_transactionFilter == item.filter) return;
+                    setState(() {
+                      _transactionFilter = item.filter;
+                    });
+                  },
+                  child: Container(
+                    alignment: Alignment.center,
+                    constraints: const BoxConstraints(minHeight: 36),
+                    decoration: BoxDecoration(
+                      color: _transactionFilter == item.filter
+                          ? (isDark ? const Color(0xFF334155) : Colors.white)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text(
+                      item.label,
+                      style: TextStyle(
+                        color: _transactionFilter == item.filter
+                            ? Theme.of(context).colorScheme.onSurface
+                            : (isDark
+                                  ? const Color(0xFF9CA3AF)
+                                  : const Color(0xFF6B7280)),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1097,11 +1208,6 @@ class _LedgerScreenState extends State<LedgerScreen> {
           schedule.lastGeneratedDate ?? schedule.startDate,
           schedule.frequency,
         );
-        final periodKey = switch (schedule.frequency) {
-          'DAILY' => 'freq_daily',
-          'YEARLY' => 'freq_yearly',
-          _ => 'freq_monthly',
-        };
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final mutedColor = isDark
             ? const Color(0xFF9CA3AF)
@@ -1157,24 +1263,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       children: [
                         Row(
                           children: [
-                            Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF302A54)
-                                    : const Color(0xFFF1EEFF),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              child: Icon(
-                                Icons.repeat,
-                                size: 20,
-                                color: isDark
-                                    ? const Color(0xFFC4B5FD)
-                                    : const Color(0xFF6D5CE8),
+                            _buildSpecialTransactionDate(
+                              parent,
+                              icon: Icons.repeat,
+                              label: AppTranslations.get(
+                                languageCode,
+                                'recurring_payment',
                               ),
                             ),
-                            const SizedBox(width: 11),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1194,27 +1291,38 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 3),
-                                  Text(
-                                    '${AppTranslations.get(languageCode, 'recurring_payment')} · '
-                                    '${AppTranslations.get(languageCode, periodKey)}',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: mutedColor,
-                                    ),
-                                  ),
+                                  _buildTransactionTime(parent.date),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              formatter.format(schedule.amount),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: schedule.type == 'GAVE'
-                                    ? const Color(0xFFEF4444)
-                                    : const Color(0xFF10B981),
-                              ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  formatter.format(schedule.amount),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: schedule.type == 'GAVE'
+                                        ? const Color(0xFFEF4444)
+                                        : const Color(0xFF10B981),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  AppTranslations.get(
+                                    languageCode,
+                                    schedule.type == 'GAVE'
+                                        ? 'transaction_gave'
+                                        : 'transaction_got',
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: mutedColor,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1580,24 +1688,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF302A54)
-                                  : const Color(0xFFF1EEFF),
-                              borderRadius: BorderRadius.circular(11),
-                            ),
-                            child: Icon(
-                              Icons.percent,
-                              size: 20,
-                              color: isDark
-                                  ? const Color(0xFFC4B5FD)
-                                  : const Color(0xFF6D5CE8),
+                          _buildSpecialTransactionDate(
+                            parent,
+                            icon: Icons.percent,
+                            label: AppTranslations.get(
+                              languageCode,
+                              'interest',
                             ),
                           ),
-                          const SizedBox(width: 11),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1617,13 +1716,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 3),
-                                Text(
-                                  DateFormat('dd MMM yyyy').format(parent.date),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: subduedColor,
-                                  ),
-                                ),
+                                _buildTransactionTime(parent.date),
                               ],
                             ),
                           ),
@@ -2190,6 +2283,102 @@ class _LedgerScreenState extends State<LedgerScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSpecialTransactionDate(
+    Transaction transaction, {
+    required IconData icon,
+    required String label,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mutedColor = isDark
+        ? const Color(0xFF9CA3AF)
+        : const Color(0xFF6B7280);
+
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            left: 0,
+            right: 18,
+            top: 14,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  DateFormat('dd').format(transaction.date),
+                  key: ValueKey('special-date-day-${transaction.id}'),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                Text(
+                  DateFormat('MMM').format(transaction.date).toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: mutedColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Tooltip(
+              message: label,
+              child: Container(
+                key: ValueKey('special-date-badge-${transaction.id}'),
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF302A54)
+                      : const Color(0xFFF1EEFF),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    width: 1.5,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  icon,
+                  size: 10,
+                  color: isDark
+                      ? const Color(0xFFC4B5FD)
+                      : const Color(0xFF6D5CE8),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionTime(DateTime date) {
+    final mutedColor = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF9CA3AF)
+        : const Color(0xFF6B7280);
+
+    return Row(
+      children: [
+        Icon(Icons.access_time, size: 12, color: mutedColor),
+        const SizedBox(width: 4),
+        Text(
+          DateFormat('hh:mm a').format(date),
+          style: TextStyle(fontSize: 12, color: mutedColor),
+        ),
+      ],
     );
   }
 
@@ -2949,9 +3138,8 @@ class _LedgerScreenState extends State<LedgerScreen> {
       context,
       listen: false,
     ).locale.languageCode;
-    final paymentActionLabel = _currentCustomer.currentBalance > 0
-        ? AppTranslations.get(languageCode, 'record_payment')
-        : '${AppTranslations.get(languageCode, 'you_got')} ₹';
+    final paymentActionLabel =
+        '${AppTranslations.get(languageCode, 'you_got')} ₹';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
