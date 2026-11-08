@@ -1041,7 +1041,7 @@
             (activeFilter === "get" && customer.balance > 0) ||
             (activeFilter === "give" && customer.balance < 0);
           const matchesAlerts =
-            !alertsOnly || Boolean(customer.alerts?.length);
+            !alertsOnly || (!customer.excluded && Boolean(customer.alerts?.length));
           return matchesQuery && matchesFilter && matchesAlerts;
         });
         visible.sort((a, b) => {
