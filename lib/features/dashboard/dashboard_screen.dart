@@ -340,6 +340,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final metricsHeight = 72 + (60 - 72) * progress;
                 final alertTop = 151 * (1 - progress);
                 final alertHeight = 41 + (60 - 41) * progress;
+                final compactMetricsWidth = 1 - 0.46 * progress;
+                final compactAlertStart = 0.86 * progress;
                 final borderOpacity = 1 - progress;
 
                 Widget labelAndValue({
@@ -404,7 +406,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Positioned(
                       left: width * 0.32 * progress,
                       top: metricsTop,
-                      width: width * (1 - 0.42 * progress),
+                      width: width * compactMetricsWidth,
                       height: metricsHeight,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -441,8 +443,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             Container(
                               width: 1,
-                              height: 32 * (1 - progress),
-                              color: lineColor.withValues(alpha: progress),
+                              height: 32 + (24 - 32) * progress,
+                              color: lineColor,
                             ),
                             Expanded(
                               child: Padding(
@@ -466,9 +468,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     if (showAlert)
                       Positioned(
-                        left: width * 0.90 * progress,
+                        left: width * compactAlertStart,
                         top: alertTop,
-                        width: width * (1 - 0.90 * progress),
+                        width: width * (1 - compactAlertStart),
                         height: alertHeight,
                         child: Material(
                           color: Colors.transparent,
@@ -528,7 +530,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                     ),
                                     SizedBox(width: 8 * (1 - progress)),
-                                    if (progress < 1)
+                                    if (progress < 1) ...[
                                       Flexible(
                                         child: Opacity(
                                           opacity: 1 - progress,
@@ -544,6 +546,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           ),
                                         ),
                                       ),
+                                      if (_showAlertsOnly) ...[
+                                        SizedBox(width: 4 * (1 - progress)),
+                                        Opacity(
+                                          opacity: 1 - progress,
+                                          child: const Text(
+                                            '·',
+                                            style: TextStyle(
+                                              color: Color(0xFFCBD5E1),
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: 4 * (1 - progress)),
+                                        Opacity(
+                                          opacity: 1 - progress,
+                                          child: Text(
+                                            AppTranslations.get(
+                                              languageCode,
+                                              'show_all_short',
+                                            ),
+                                            style: const TextStyle(
+                                              color: Color(0xFFCBD5E1),
+                                              fontSize: 11,
+                                              decoration:
+                                                  TextDecoration.underline,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ],
                                 ),
                               ),
