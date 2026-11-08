@@ -23,6 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   String _filterType = 'All'; // 'All', 'GET', 'GIVE'
+  String _sortType = 'balanceHighToLow';
   bool _showAlertsOnly = false;
 
   @override
@@ -507,7 +508,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           suffixIcon: PopupMenuButton<String>(
             icon: Icon(
               Icons.filter_list,
-              color: _filterType == 'All'
+              color: _filterType == 'All' && _sortType == 'balanceHighToLow'
                   ? (Theme.of(context).brightness == Brightness.dark
                         ? const Color(0xFF94A3B8)
                         : const Color(0xFF9CA3AF))
@@ -515,78 +516,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             onSelected: (String value) {
               setState(() {
-                _filterType = value;
+                if (value.startsWith('sort:')) {
+                  _sortType = value.substring('sort:'.length);
+                } else {
+                  _filterType = value;
+                }
               });
             },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              PopupMenuItem<String>(
-                value: 'All',
-                child: Row(
-                  children: [
-                    if (_filterType == 'All')
-                      const Icon(
-                        Icons.check,
-                        size: 18,
-                        color: Color(0xFF4F46E5),
-                      )
-                    else
-                      const SizedBox(width: 18),
-                    const SizedBox(width: 8),
-                    const Text('All'),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'GET',
-                child: Row(
-                  children: [
-                    if (_filterType == 'GET')
-                      const Icon(
-                        Icons.check,
-                        size: 18,
-                        color: Color(0xFF4F46E5),
-                      )
-                    else
-                      const SizedBox(width: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppTranslations.get(
-                        Provider.of<LanguageProvider>(
-                          context,
-                          listen: false,
-                        ).locale.languageCode,
-                        'you_will_get',
-                      ),
+            itemBuilder: (BuildContext context) {
+              final languageCode = Provider.of<LanguageProvider>(
+                context,
+                listen: false,
+              ).locale.languageCode;
+              return <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  enabled: false,
+                  height: 32,
+                  child: Text(
+                    AppTranslations.get(languageCode, 'filter_customers'),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF6B7280),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              PopupMenuItem<String>(
-                value: 'GIVE',
-                child: Row(
-                  children: [
-                    if (_filterType == 'GIVE')
-                      const Icon(
-                        Icons.check,
-                        size: 18,
-                        color: Color(0xFF4F46E5),
-                      )
-                    else
-                      const SizedBox(width: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppTranslations.get(
-                        Provider.of<LanguageProvider>(
-                          context,
-                          listen: false,
-                        ).locale.languageCode,
-                        'you_will_give',
-                      ),
+                _buildFilterSortOption(
+                  'All',
+                  AppTranslations.get(languageCode, 'all_customers'),
+                  _filterType == 'All',
+                ),
+                _buildFilterSortOption(
+                  'GET',
+                  AppTranslations.get(languageCode, 'you_will_get'),
+                  _filterType == 'GET',
+                ),
+                _buildFilterSortOption(
+                  'GIVE',
+                  AppTranslations.get(languageCode, 'you_will_give'),
+                  _filterType == 'GIVE',
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem<String>(
+                  enabled: false,
+                  height: 32,
+                  child: Text(
+                    AppTranslations.get(languageCode, 'sort_by'),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF6B7280),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                _buildFilterSortOption(
+                  'sort:balanceHighToLow',
+                  AppTranslations.get(languageCode, 'sort_balance_high_to_low'),
+                  _sortType == 'balanceHighToLow',
+                ),
+                _buildFilterSortOption(
+                  'sort:balanceLowToHigh',
+                  AppTranslations.get(languageCode, 'sort_balance_low_to_high'),
+                  _sortType == 'balanceLowToHigh',
+                ),
+                _buildFilterSortOption(
+                  'sort:nameAToZ',
+                  AppTranslations.get(languageCode, 'sort_name_a_to_z'),
+                  _sortType == 'nameAToZ',
+                ),
+                _buildFilterSortOption(
+                  'sort:nameZToA',
+                  AppTranslations.get(languageCode, 'sort_name_z_to_a'),
+                  _sortType == 'nameZToA',
+                ),
+              ];
+            },
           ),
           filled: true,
           fillColor: Theme.of(context).brightness == Brightness.dark
@@ -614,6 +618,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
             borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
           ),
         ),
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildFilterSortOption(
+    String value,
+    String label,
+    bool selected,
+  ) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          if (selected)
+            const Icon(Icons.check, size: 18, color: Color(0xFF4F46E5))
+          else
+            const SizedBox(width: 18),
+          const SizedBox(width: 8),
+          Text(label),
+        ],
       ),
     );
   }
@@ -647,13 +671,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
         if (_showAlertsOnly) {
           customers = customers
-              .where(
-                (customer) =>
-                    !customer.isExcluded &&
-                    customerAlerts.containsKey(customer.id),
-              )
+              .where((customer) => customerAlerts.containsKey(customer.id))
               .toList();
         }
+        customers.sort((a, b) {
+          final aHasBalance = a.currentBalance.abs() >= 0.01;
+          final bHasBalance = b.currentBalance.abs() >= 0.01;
+          final aGroup = !aHasBalance ? 2 : (a.isExcluded ? 1 : 0);
+          final bGroup = !bHasBalance ? 2 : (b.isExcluded ? 1 : 0);
+          final groupComparison = aGroup.compareTo(bGroup);
+          if (groupComparison != 0) return groupComparison;
+
+          final nameComparison = a.name.toLowerCase().compareTo(
+            b.name.toLowerCase(),
+          );
+          if (!aHasBalance) return nameComparison;
+
+          final balanceComparison = b.currentBalance.abs().compareTo(
+            a.currentBalance.abs(),
+          );
+          switch (_sortType) {
+            case 'balanceLowToHigh':
+              final amountComparison = a.currentBalance.abs().compareTo(
+                b.currentBalance.abs(),
+              );
+              return amountComparison != 0 ? amountComparison : nameComparison;
+            case 'nameAToZ':
+              return nameComparison != 0 ? nameComparison : balanceComparison;
+            case 'nameZToA':
+              final reverseNameComparison = b.name.toLowerCase().compareTo(
+                a.name.toLowerCase(),
+              );
+              return reverseNameComparison != 0
+                  ? reverseNameComparison
+                  : balanceComparison;
+            default:
+              return balanceComparison != 0
+                  ? balanceComparison
+                  : nameComparison;
+          }
+        });
 
         if (customers.isEmpty) {
           return Center(
