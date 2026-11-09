@@ -600,6 +600,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
               : !isOrdinaryTransaction;
         }).toList();
 
+        final runningBalances = <String, double>{};
+        var runningBalance = 0.0;
+        for (final transaction in filteredTransactions.reversed) {
+          if (!transaction.isRecurringParent &&
+              !transaction.isPaid &&
+              !transaction.isExcluded) {
+            runningBalance += transaction.type == 'GAVE'
+                ? transaction.amount
+                : -transaction.amount;
+          }
+          runningBalances[transaction.id] = runningBalance;
+        }
+
         final entries =
             <
               ({
@@ -685,7 +698,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
             final normalTransactions = entry.normalTransactions;
             if (normalTransactions != null) {
-              return _buildNormalTransactionGroup(database, normalTransactions);
+              return _buildNormalTransactionGroup(
+                database,
+                normalTransactions,
+                runningBalances,
+              );
             }
 
             final transaction = entry.transaction!;
@@ -694,6 +711,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
               database,
               transaction,
               interestMap[transaction.id] ?? [],
+              runningBalance: runningBalances[transaction.id],
             );
           },
         );
@@ -782,6 +800,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Widget _buildNormalTransactionGroup(
     AppDatabase database,
     List<Transaction> transactions,
+    Map<String, double> runningBalances,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
@@ -812,11 +831,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var index = 0; index < transactions.length; index++)
-            _buildTransactionItem(
-              context,
-              database,
-              transactions[index],
-              showDivider: index < transactions.length - 1,
+            Column(
+              children: [
+                _buildTransactionItem(
+                  context,
+                  database,
+                  transactions[index],
+                  showDivider: false,
+                ),
+                _buildRunningBalance(
+                  runningBalances[transactions[index].id] ?? 0,
+                  key: ValueKey('running-balance-${transactions[index].id}'),
+                ),
+                if (index < transactions.length - 1)
+                  Divider(
+                    height: 1,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF374151)
+                        : const Color(0xFFE5E7EB),
+                  ),
+              ],
             ),
         ],
       ),
@@ -840,12 +874,94 @@ class _LedgerScreenState extends State<LedgerScreen> {
     );
   }
 
+  Widget _buildRunningBalance(double balance, {Key? key}) {
+    final languageCode = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).locale.languageCode;
+    final isSettled = balance.abs() < 0.01;
+    final color = isSettled
+        ? (Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF9CA3AF)
+              : const Color(0xFF6B7280))
+        : balance > 0
+        ? const Color(0xFF10B981)
+        : const Color(0xFFEF4444);
+    final label = AppTranslations.get(languageCode, 'balance_after');
+    final direction = AppTranslations.get(
+      languageCode,
+      isSettled
+          ? 'no_due'
+          : balance > 0
+          ? 'ledger_get'
+          : 'ledger_give',
+    );
+    final amount = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    ).format(balance.abs());
+
+    return Container(
+      key: key,
+      margin: const EdgeInsets.only(left: 64, right: 12, bottom: 8),
+      padding: const EdgeInsets.only(top: 6),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF334155)
+                : const Color(0xFFE5E7EB),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF6B7280)
+                  : const Color(0xFF9CA3AF),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          Flexible(
+            child: Text(
+              amount,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            direction.toUpperCase(),
+            style: TextStyle(
+              color: color,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildExpandableTransactionItem(
     BuildContext context,
     AppDatabase database,
     Transaction tx,
-    List<Transaction> associatedInterests,
-  ) {
+    List<Transaction> associatedInterests, {
+    double? runningBalance,
+  }) {
     if (tx.isRecurringParent) {
       return _buildRecurringTransactionCard(
         context,
@@ -854,6 +970,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         associatedInterests
             .where((item) => item.isInterestEntry != true)
             .toList(),
+        runningBalance: runningBalance,
       );
     }
 
@@ -865,11 +982,22 @@ class _LedgerScreenState extends State<LedgerScreen> {
         associatedInterests
             .where((item) => item.isInterestEntry == true)
             .toList(),
+        runningBalance: runningBalance,
       );
     }
 
     if (associatedInterests.isEmpty) {
-      return _buildTransactionItem(context, database, tx);
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildTransactionItem(context, database, tx, showDivider: false),
+          if (runningBalance != null)
+            _buildRunningBalance(
+              runningBalance,
+              key: ValueKey('running-balance-${tx.id}'),
+            ),
+        ],
+      );
     }
 
     final totalInterest = associatedInterests
@@ -909,241 +1037,253 @@ class _LedgerScreenState extends State<LedgerScreen> {
                 ),
               ),
             ),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.only(
-                left: 13,
-                right: 12,
-                top: 8,
-                bottom: 8,
-              ),
-              leading: _buildBadge(tx),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ExpansionTile(
+                  tilePadding: const EdgeInsets.only(
+                    left: 13,
+                    right: 12,
+                    top: 8,
+                    bottom: 8,
+                  ),
+                  leading: _buildBadge(tx),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        formatter.format(netAmount),
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: isInactive
-                              ? const Color(0xFF9CA3AF)
-                              : amountColor,
-                          decoration: isInactive
-                              ? TextDecoration.lineThrough
-                              : null,
-                        ),
-                      ),
-                      Text(
-                        isGave
-                            ? AppTranslations.get(
-                                Provider.of<LanguageProvider>(
-                                  context,
-                                ).locale.languageCode,
-                                'transaction_gave',
-                              )
-                            : AppTranslations.get(
-                                Provider.of<LanguageProvider>(
-                                  context,
-                                ).locale.languageCode,
-                                'transaction_got',
-                              ),
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: isInactive
-                              ? const Color(0xFF9CA3AF)
-                              : const Color(0xFF6B7280),
-                        ),
-                      ),
-                      if (tx.isExcluded) ...[
-                        const SizedBox(height: 2),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFFF59E0B,
-                            ).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: const Color(
-                                0xFFF59E0B,
-                              ).withValues(alpha: 0.5),
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Text(
-                            AppTranslations.get(
-                              Provider.of<LanguageProvider>(
-                                context,
-                              ).locale.languageCode,
-                              'excluded_badge',
-                            ),
-                            style: const TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFD97706),
-                            ),
-                          ),
-                        ),
-                      ] else if (tx.isPaid) ...[
-                        const SizedBox(height: 2),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF10B981,
-                            ).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: const Color(
-                                0xFF10B981,
-                              ).withValues(alpha: 0.5),
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Text(
-                            AppTranslations.get(
-                              Provider.of<LanguageProvider>(
-                                context,
-                              ).locale.languageCode,
-                              'paid_label',
-                            ),
-                            style: const TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF10B981),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(width: 4), // TIGHT GAP
-                  AnimatedRotation(
-                    turns: isExpanded ? 0 : 0.25,
-                    duration: const Duration(milliseconds: 200),
-                    child: const Icon(
-                      Icons.expand_more,
-                      size: 18,
-                      color: Color(0xFF8B5CF6),
-                    ),
-                  ),
-                ],
-              ),
-              onExpansionChanged: (expanded) {
-                setTileState(() {
-                  isExpanded = expanded;
-                });
-              },
-              title: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onLongPress: () =>
-                    _showTransactionOptions(context, database, tx),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            tx.notes?.isNotEmpty == true
-                                ? tx.notes!
+                            formatter.format(netAmount),
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: isInactive
+                                  ? const Color(0xFF9CA3AF)
+                                  : amountColor,
+                              decoration: isInactive
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                          Text(
+                            isGave
+                                ? AppTranslations.get(
+                                    Provider.of<LanguageProvider>(
+                                      context,
+                                    ).locale.languageCode,
+                                    'transaction_gave',
+                                  )
                                 : AppTranslations.get(
                                     Provider.of<LanguageProvider>(
                                       context,
                                     ).locale.languageCode,
-                                    'no_details',
+                                    'transaction_got',
                                   ),
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white
-                                  : const Color(0xFF111827),
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: isInactive
+                                  ? const Color(0xFF9CA3AF)
+                                  : const Color(0xFF6B7280),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 11,
-                                color:
-                                    Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? const Color(0xFF9CA3AF)
-                                    : const Color(0xFF6B7280),
+                          if (tx.isExcluded) ...[
+                            const SizedBox(height: 2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
                               ),
-                              const SizedBox(width: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFFF59E0B,
+                                ).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFFF59E0B,
+                                  ).withValues(alpha: 0.5),
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Text(
+                                AppTranslations.get(
+                                  Provider.of<LanguageProvider>(
+                                    context,
+                                  ).locale.languageCode,
+                                  'excluded_badge',
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFD97706),
+                                ),
+                              ),
+                            ),
+                          ] else if (tx.isPaid) ...[
+                            const SizedBox(height: 2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF10B981,
+                                ).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFF10B981,
+                                  ).withValues(alpha: 0.5),
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Text(
+                                AppTranslations.get(
+                                  Provider.of<LanguageProvider>(
+                                    context,
+                                  ).locale.languageCode,
+                                  'paid_label',
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF10B981),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(width: 4), // TIGHT GAP
+                      AnimatedRotation(
+                        turns: isExpanded ? 0 : 0.25,
+                        duration: const Duration(milliseconds: 200),
+                        child: const Icon(
+                          Icons.expand_more,
+                          size: 18,
+                          color: Color(0xFF8B5CF6),
+                        ),
+                      ),
+                    ],
+                  ),
+                  onExpansionChanged: (expanded) {
+                    setTileState(() {
+                      isExpanded = expanded;
+                    });
+                  },
+                  title: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onLongPress: () =>
+                        _showTransactionOptions(context, database, tx),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                "${DateFormat('hh:mm a').format(tx.date)}${(tx.isRecurringParent || tx.amount == 0 || (tx.interestRate != null && tx.interestRate! > 0)) ? " • ${DateFormat('dd MMM').format(tx.date)}" : ""}",
+                                tx.notes?.isNotEmpty == true
+                                    ? tx.notes!
+                                    : AppTranslations.get(
+                                        Provider.of<LanguageProvider>(
+                                          context,
+                                        ).locale.languageCode,
+                                        'no_details',
+                                      ),
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
                                   color:
                                       Theme.of(context).brightness ==
                                           Brightness.dark
-                                      ? const Color(0xFF9CA3AF)
-                                      : const Color(0xFF6B7280),
+                                      ? Colors.white
+                                      : const Color(0xFF111827),
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              if (!(tx.isRecurringParent || tx.amount == 0))
-                                Flexible(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 1,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(
-                                        0xFF8B5CF6,
-                                      ).withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      "${formatter.format(tx.amount)} + ${formatter.format(totalInterest)}",
-                                      style: const TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF8B5CF6),
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.access_time,
+                                    size: 11,
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color(0xFF9CA3AF)
+                                        : const Color(0xFF6B7280),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "${DateFormat('hh:mm a').format(tx.date)}${(tx.isRecurringParent || tx.amount == 0 || (tx.interestRate != null && tx.interestRate! > 0)) ? " • ${DateFormat('dd MMM').format(tx.date)}" : ""}",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color:
+                                          Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? const Color(0xFF9CA3AF)
+                                          : const Color(0xFF6B7280),
                                     ),
                                   ),
-                                ),
+                                  if (!(tx.isRecurringParent || tx.amount == 0))
+                                    Flexible(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                          vertical: 1,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(
+                                            0xFF8B5CF6,
+                                          ).withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          "${formatter.format(tx.amount)} + ${formatter.format(totalInterest)}",
+                                          style: const TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF8B5CF6),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  children: [
+                    if (tx.isRecurringParent)
+                      _buildRecurringSummary(
+                        associatedInterests
+                            .where((record) => record.isInterestEntry != true)
+                            .toList(),
                       ),
+                    ...associatedInterests.map(
+                      (interest) =>
+                          _buildInterestSubItem(context, database, interest),
                     ),
                   ],
                 ),
-              ),
-              children: [
-                if (tx.isRecurringParent)
-                  _buildRecurringSummary(
-                    associatedInterests
-                        .where((record) => record.isInterestEntry != true)
-                        .toList(),
+                if (runningBalance != null)
+                  _buildRunningBalance(
+                    runningBalance,
+                    key: ValueKey('running-balance-${tx.id}'),
                   ),
-                ...associatedInterests.map(
-                  (interest) =>
-                      _buildInterestSubItem(context, database, interest),
-                ),
               ],
             ),
           ),
@@ -1156,8 +1296,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     BuildContext context,
     AppDatabase database,
     Transaction parent,
-    List<Transaction> recurringRecords,
-  ) {
+    List<Transaction> recurringRecords, {
+    double? runningBalance,
+  }) {
     final languageCode = Provider.of<LanguageProvider>(
       context,
       listen: false,
@@ -1554,6 +1695,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
                         )
                       : const SizedBox.shrink(),
                 ),
+                if (runningBalance != null)
+                  _buildRunningBalance(
+                    runningBalance,
+                    key: ValueKey('running-balance-${parent.id}'),
+                  ),
               ],
             ),
           ),
@@ -1566,8 +1712,9 @@ class _LedgerScreenState extends State<LedgerScreen> {
     BuildContext context,
     AppDatabase database,
     Transaction parent,
-    List<Transaction> interestRecords,
-  ) {
+    List<Transaction> interestRecords, {
+    double? runningBalance,
+  }) {
     final formatter = NumberFormat.currency(
       locale: 'en_IN',
       symbol: '₹',
@@ -1972,6 +2119,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
                       )
                     : const SizedBox.shrink(),
               ),
+              if (runningBalance != null)
+                _buildRunningBalance(
+                  runningBalance,
+                  key: ValueKey('running-balance-${parent.id}'),
+                ),
             ],
           ),
         );
