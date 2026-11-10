@@ -64,6 +64,13 @@ dependencies:
   pdf: ^3.11.1
   printing: ^5.13.4
 
+# flutter_contacts 1.1.9+2 force-unwraps the app delegate's window when it registers,
+# which crashes under the UIScene lifecycle required on iOS 27+. This local copy looks
+# up the view controller lazily instead (see third_party/flutter_contacts/ios).
+dependency_overrides:
+  flutter_contacts:
+    path: third_party/flutter_contacts
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
