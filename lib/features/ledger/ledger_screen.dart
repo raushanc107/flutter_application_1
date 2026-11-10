@@ -478,10 +478,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
         _currentCustomer.id,
       );
 
+      final recurringRules = (await database.getAllRecurringTransactions())
+          .where((r) => r.customerId == _currentCustomer.id)
+          .toList();
+
       // Generate PDF
       final pdfBytes = await PdfService.generateCustomerReport(
         customer: _currentCustomer,
         transactions: transactions,
+        recurringRules: recurringRules,
         config: config,
       );
 
@@ -495,7 +500,10 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
       // Generate filename
       final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final filename = '${_currentCustomer.name}_Report_$dateStr.pdf';
+      final label = config.type == StatementType.paymentRequest
+          ? 'PaymentRequest'
+          : 'Statement';
+      final filename = '${_currentCustomer.name}_${label}_$dateStr.pdf';
 
       // Share PDF using native share sheet
       await Printing.sharePdf(bytes: pdfBytes, filename: filename);

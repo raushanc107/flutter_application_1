@@ -1,79 +1,54 @@
 enum DateRange { all, last30Days, last3Months, last6Months, lastYear, custom }
 
+/// Which PDF to generate for a customer.
+enum StatementType {
+  /// Full account statement for a date range, with running balance.
+  full,
+
+  /// Short request listing only pending interest and recurring dues.
+  paymentRequest,
+}
+
 class PdfConfig {
+  final StatementType type;
   final DateRange dateRange;
   final DateTime? customStartDate;
   final DateTime? customEndDate;
-  final bool includeTransactionDetails;
-  final bool summaryOnly;
-  final bool includeInterest;
-  final bool includePaymentHistory;
-  final bool includeContactInfo;
-  final bool includePaidPayments;
-  final String languageCode;
 
   PdfConfig({
+    this.type = StatementType.full,
     this.dateRange = DateRange.all,
     this.customStartDate,
     this.customEndDate,
-    this.includeTransactionDetails = true,
-    this.summaryOnly = false,
-    this.includeInterest = true,
-    this.includePaymentHistory = true,
-    this.includeContactInfo = true,
-    this.includePaidPayments = false,
-    this.languageCode = 'en',
   });
 
-  PdfConfig copyWith({
-    DateRange? dateRange,
-    DateTime? customStartDate,
-    DateTime? customEndDate,
-    bool? includeTransactionDetails,
-    bool? summaryOnly,
-    bool? includeInterest,
-    bool? includePaymentHistory,
-    bool? includeContactInfo,
-    bool? includePaidPayments,
-    String? languageCode,
-  }) {
-    return PdfConfig(
-      dateRange: dateRange ?? this.dateRange,
-      customStartDate: customStartDate ?? this.customStartDate,
-      customEndDate: customEndDate ?? this.customEndDate,
-      includeTransactionDetails:
-          includeTransactionDetails ?? this.includeTransactionDetails,
-      summaryOnly: summaryOnly ?? this.summaryOnly,
-      includeInterest: includeInterest ?? this.includeInterest,
-      includePaymentHistory:
-          includePaymentHistory ?? this.includePaymentHistory,
-      includeContactInfo: includeContactInfo ?? this.includeContactInfo,
-      includePaidPayments: includePaidPayments ?? this.includePaidPayments,
-      languageCode: languageCode ?? this.languageCode,
-    );
-  }
-
+  /// Start of the statement period (midnight), or null for "from the beginning".
   DateTime? getStartDate() {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     switch (dateRange) {
       case DateRange.all:
         return null;
       case DateRange.last30Days:
-        return now.subtract(const Duration(days: 30));
+        return today.subtract(const Duration(days: 30));
       case DateRange.last3Months:
-        return now.subtract(const Duration(days: 90));
+        return today.subtract(const Duration(days: 90));
       case DateRange.last6Months:
-        return now.subtract(const Duration(days: 180));
+        return today.subtract(const Duration(days: 180));
       case DateRange.lastYear:
-        return now.subtract(const Duration(days: 365));
+        return today.subtract(const Duration(days: 365));
       case DateRange.custom:
-        return customStartDate;
+        final s = customStartDate;
+        return s == null ? null : DateTime(s.year, s.month, s.day);
     }
   }
 
+  /// End of the statement period (inclusive, 23:59:59.999), or null for
+  /// "up to now".
   DateTime? getEndDate() {
-    if (dateRange == DateRange.custom) {
-      return customEndDate;
+    if (dateRange == DateRange.custom && customEndDate != null) {
+      final e = customEndDate!;
+      return DateTime(e.year, e.month, e.day, 23, 59, 59, 999);
     }
     return null;
   }
