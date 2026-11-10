@@ -16,6 +16,7 @@ class BackupService {
     final customers = await _db.getAllCustomers();
     final transactions = await _db.getAllTransactions();
     final recurringTransactions = await _db.getAllRecurringTransactions();
+    final savedCards = await _db.getAllSavedCards();
 
     final data = {
       'customers': customers.map((c) => c.toJson()).toList(),
@@ -23,7 +24,8 @@ class BackupService {
       'recurringTransactions': recurringTransactions
           .map((r) => r.toJson())
           .toList(),
-      'version': 6, // Schema version for compatibility checking
+      'savedCards': savedCards.map((c) => c.toJson()).toList(),
+      'version': 7, // Schema version for compatibility checking
       'exportDate': DateTime.now().toIso8601String(),
     };
     return jsonEncode(data);
@@ -233,13 +235,58 @@ class BackupService {
       }
     }
 
-    // 6. Recalculate all balances to ensure consistency
+    // 6. Merge Saved Cards (absent in backups made before schema version 7)
+    final savedCardsData = (data['savedCards'] as List?) ?? [];
+    int addedSavedCards = 0;
+
+    if (savedCardsData.isNotEmpty) {
+      final existingCards = await _db.getAllSavedCards();
+      final existingCardIds = existingCards.map((c) => c.id).toSet();
+      var hasDefault = existingCards.any((c) => c.isDefault);
+
+      for (final c in savedCardsData) {
+        final Map<String, dynamic> cardData = c as Map<String, dynamic>;
+        if (existingCardIds.contains(cardData['id'])) continue;
+
+        // Never end up with two default cards after a merge.
+        final wantsDefault = cardData['isDefault'] as bool? ?? false;
+        final isDefault = wantsDefault && !hasDefault;
+        if (isDefault) hasDefault = true;
+
+        await _db
+            .into(_db.savedCards)
+            .insert(
+              SavedCardsCompanion(
+                id: drift.Value(cardData['id'] as String),
+                name: drift.Value(cardData['name'] as String),
+                issuer: drift.Value(cardData['issuer'] as String),
+                cardType: drift.Value(cardData['cardType'] as String),
+                network: drift.Value(cardData['network'] as String),
+                cardNumber: drift.Value(cardData['cardNumber'] as String),
+                expiry: drift.Value(cardData['expiry'] as String),
+                holderName: drift.Value(cardData['holderName'] as String),
+                colorTone: drift.Value(
+                  cardData['colorTone'] as String? ?? 'indigo',
+                ),
+                isDefault: drift.Value(isDefault),
+                createdAt: drift.Value(
+                  _parseDateTime(cardData['createdAt']) ?? DateTime.now(),
+                ),
+              ),
+            );
+        addedSavedCards++;
+      }
+      await _db.normalizeDefaultSavedCard();
+    }
+
+    // 7. Recalculate all balances to ensure consistency
     await _db.recalculateAllBalances();
 
     return {
       'customers': addedCustomers,
       'transactions': addedTransactions,
       'recurringTransactions': addedRecurringTransactions,
+      'savedCards': addedSavedCards,
     };
   }
 

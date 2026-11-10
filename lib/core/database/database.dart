@@ -64,12 +64,38 @@ class RecurringTransactions extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Customers, Transactions, RecurringTransactions])
+/// Payment cards saved by the user (credit, debit, prepaid, other).
+///
+/// Named `SavedCards` / `SavedCard` so the generated data class does not clash
+/// with Flutter's `Card` widget.
+@DataClassName('SavedCard')
+class SavedCards extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()(); // Nickname, e.g. "Everyday spends"
+  TextColumn get issuer => text()(); // Bank / issuer
+  TextColumn get cardType => text()(); // 'CREDIT', 'DEBIT', 'PREPAID', 'OTHER'
+  TextColumn get network =>
+      text()(); // 'visa', 'mastercard', 'rupay', 'amex', 'other'
+  TextColumn get cardNumber => text()(); // Digits only, 13-19 characters
+  TextColumn get expiry => text()(); // 'MM/YY'
+  TextColumn get holderName => text()();
+  TextColumn get colorTone =>
+      text().withDefault(const Constant('indigo'))(); // Card face colour key
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(
+  tables: [Customers, Transactions, RecurringTransactions, SavedCards],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration {
@@ -126,6 +152,9 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(customers, customers.isExcluded);
           await m.addColumn(transactions, transactions.isExcluded);
         }
+        if (from < 7) {
+          await m.createTable(savedCards);
+        }
       },
     );
   }
@@ -155,6 +184,77 @@ class AppDatabase extends _$AppDatabase {
     await delete(recurringTransactions).go();
     await delete(transactions).go();
     await delete(customers).go();
+    await delete(savedCards).go();
+  }
+
+  // ---- Saved cards ----
+
+  Future<List<SavedCard>> getAllSavedCards() => select(savedCards).get();
+
+  /// Default card first, then newest first.
+  Stream<List<SavedCard>> watchAllSavedCards() {
+    return (select(savedCards)..orderBy([
+          (c) => OrderingTerm.desc(c.isDefault),
+          (c) => OrderingTerm.desc(c.createdAt),
+        ]))
+        .watch();
+  }
+
+  /// Inserts or updates a card while keeping exactly one default card:
+  /// the first card ever saved becomes the default, and marking a card as the
+  /// default clears the flag on every other card.
+  Future<void> saveCard(SavedCardsCompanion card) {
+    return transaction(() async {
+      final isFirstCard = (await select(savedCards).get()).isEmpty;
+      final effective = isFirstCard
+          ? card.copyWith(isDefault: const Value(true))
+          : card;
+
+      await into(savedCards).insertOnConflictUpdate(effective);
+      if (effective.isDefault.present && effective.isDefault.value) {
+        await (update(savedCards)
+              ..where((c) => c.id.equals(card.id.value).not()))
+            .write(const SavedCardsCompanion(isDefault: Value(false)));
+      }
+      await normalizeDefaultSavedCard();
+    });
+  }
+
+  Future<void> setDefaultSavedCard(String id) {
+    return transaction(() async {
+      await update(
+        savedCards,
+      ).write(const SavedCardsCompanion(isDefault: Value(false)));
+      await (update(savedCards)..where((c) => c.id.equals(id))).write(
+        const SavedCardsCompanion(isDefault: Value(true)),
+      );
+    });
+  }
+
+  Future<void> deleteSavedCard(String id) {
+    return transaction(() async {
+      await (delete(savedCards)..where((c) => c.id.equals(id))).go();
+      await normalizeDefaultSavedCard();
+    });
+  }
+
+  /// Makes sure that, when any cards exist, exactly one of them is the default.
+  Future<void> normalizeDefaultSavedCard() async {
+    final cards = await (select(
+      savedCards,
+    )..orderBy([(c) => OrderingTerm.asc(c.createdAt)])).get();
+    if (cards.isEmpty) return;
+    final defaults = cards.where((c) => c.isDefault).toList();
+    if (defaults.length == 1) return;
+    // None marked (e.g. the default was deleted) -> promote the oldest card.
+    // Several marked (e.g. merged backups) -> keep the first and clear the rest.
+    final keep = defaults.isEmpty ? cards.first : defaults.first;
+    await update(
+      savedCards,
+    ).write(const SavedCardsCompanion(isDefault: Value(false)));
+    await (update(savedCards)..where((c) => c.id.equals(keep.id))).write(
+      const SavedCardsCompanion(isDefault: Value(true)),
+    );
   }
 
   Future<List<Transaction>> getAllTransactions() => select(transactions).get();

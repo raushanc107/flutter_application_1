@@ -1987,6 +1987,657 @@ class RecurringTransactionsCompanion
   }
 }
 
+class $SavedCardsTable extends SavedCards
+    with TableInfo<$SavedCardsTable, SavedCard> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SavedCardsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _issuerMeta = const VerificationMeta('issuer');
+  @override
+  late final GeneratedColumn<String> issuer = GeneratedColumn<String>(
+    'issuer',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cardTypeMeta = const VerificationMeta(
+    'cardType',
+  );
+  @override
+  late final GeneratedColumn<String> cardType = GeneratedColumn<String>(
+    'card_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _networkMeta = const VerificationMeta(
+    'network',
+  );
+  @override
+  late final GeneratedColumn<String> network = GeneratedColumn<String>(
+    'network',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cardNumberMeta = const VerificationMeta(
+    'cardNumber',
+  );
+  @override
+  late final GeneratedColumn<String> cardNumber = GeneratedColumn<String>(
+    'card_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _expiryMeta = const VerificationMeta('expiry');
+  @override
+  late final GeneratedColumn<String> expiry = GeneratedColumn<String>(
+    'expiry',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _holderNameMeta = const VerificationMeta(
+    'holderName',
+  );
+  @override
+  late final GeneratedColumn<String> holderName = GeneratedColumn<String>(
+    'holder_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _colorToneMeta = const VerificationMeta(
+    'colorTone',
+  );
+  @override
+  late final GeneratedColumn<String> colorTone = GeneratedColumn<String>(
+    'color_tone',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('indigo'),
+  );
+  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
+    'isDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
+    'is_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    issuer,
+    cardType,
+    network,
+    cardNumber,
+    expiry,
+    holderName,
+    colorTone,
+    isDefault,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'saved_cards';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SavedCard> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('issuer')) {
+      context.handle(
+        _issuerMeta,
+        issuer.isAcceptableOrUnknown(data['issuer']!, _issuerMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_issuerMeta);
+    }
+    if (data.containsKey('card_type')) {
+      context.handle(
+        _cardTypeMeta,
+        cardType.isAcceptableOrUnknown(data['card_type']!, _cardTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cardTypeMeta);
+    }
+    if (data.containsKey('network')) {
+      context.handle(
+        _networkMeta,
+        network.isAcceptableOrUnknown(data['network']!, _networkMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_networkMeta);
+    }
+    if (data.containsKey('card_number')) {
+      context.handle(
+        _cardNumberMeta,
+        cardNumber.isAcceptableOrUnknown(data['card_number']!, _cardNumberMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cardNumberMeta);
+    }
+    if (data.containsKey('expiry')) {
+      context.handle(
+        _expiryMeta,
+        expiry.isAcceptableOrUnknown(data['expiry']!, _expiryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_expiryMeta);
+    }
+    if (data.containsKey('holder_name')) {
+      context.handle(
+        _holderNameMeta,
+        holderName.isAcceptableOrUnknown(data['holder_name']!, _holderNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_holderNameMeta);
+    }
+    if (data.containsKey('color_tone')) {
+      context.handle(
+        _colorToneMeta,
+        colorTone.isAcceptableOrUnknown(data['color_tone']!, _colorToneMeta),
+      );
+    }
+    if (data.containsKey('is_default')) {
+      context.handle(
+        _isDefaultMeta,
+        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SavedCard map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SavedCard(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      issuer: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}issuer'],
+      )!,
+      cardType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}card_type'],
+      )!,
+      network: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}network'],
+      )!,
+      cardNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}card_number'],
+      )!,
+      expiry: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}expiry'],
+      )!,
+      holderName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}holder_name'],
+      )!,
+      colorTone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}color_tone'],
+      )!,
+      isDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_default'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SavedCardsTable createAlias(String alias) {
+    return $SavedCardsTable(attachedDatabase, alias);
+  }
+}
+
+class SavedCard extends DataClass implements Insertable<SavedCard> {
+  final String id;
+  final String name;
+  final String issuer;
+  final String cardType;
+  final String network;
+  final String cardNumber;
+  final String expiry;
+  final String holderName;
+  final String colorTone;
+  final bool isDefault;
+  final DateTime createdAt;
+  const SavedCard({
+    required this.id,
+    required this.name,
+    required this.issuer,
+    required this.cardType,
+    required this.network,
+    required this.cardNumber,
+    required this.expiry,
+    required this.holderName,
+    required this.colorTone,
+    required this.isDefault,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['issuer'] = Variable<String>(issuer);
+    map['card_type'] = Variable<String>(cardType);
+    map['network'] = Variable<String>(network);
+    map['card_number'] = Variable<String>(cardNumber);
+    map['expiry'] = Variable<String>(expiry);
+    map['holder_name'] = Variable<String>(holderName);
+    map['color_tone'] = Variable<String>(colorTone);
+    map['is_default'] = Variable<bool>(isDefault);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  SavedCardsCompanion toCompanion(bool nullToAbsent) {
+    return SavedCardsCompanion(
+      id: Value(id),
+      name: Value(name),
+      issuer: Value(issuer),
+      cardType: Value(cardType),
+      network: Value(network),
+      cardNumber: Value(cardNumber),
+      expiry: Value(expiry),
+      holderName: Value(holderName),
+      colorTone: Value(colorTone),
+      isDefault: Value(isDefault),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory SavedCard.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SavedCard(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      issuer: serializer.fromJson<String>(json['issuer']),
+      cardType: serializer.fromJson<String>(json['cardType']),
+      network: serializer.fromJson<String>(json['network']),
+      cardNumber: serializer.fromJson<String>(json['cardNumber']),
+      expiry: serializer.fromJson<String>(json['expiry']),
+      holderName: serializer.fromJson<String>(json['holderName']),
+      colorTone: serializer.fromJson<String>(json['colorTone']),
+      isDefault: serializer.fromJson<bool>(json['isDefault']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'issuer': serializer.toJson<String>(issuer),
+      'cardType': serializer.toJson<String>(cardType),
+      'network': serializer.toJson<String>(network),
+      'cardNumber': serializer.toJson<String>(cardNumber),
+      'expiry': serializer.toJson<String>(expiry),
+      'holderName': serializer.toJson<String>(holderName),
+      'colorTone': serializer.toJson<String>(colorTone),
+      'isDefault': serializer.toJson<bool>(isDefault),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  SavedCard copyWith({
+    String? id,
+    String? name,
+    String? issuer,
+    String? cardType,
+    String? network,
+    String? cardNumber,
+    String? expiry,
+    String? holderName,
+    String? colorTone,
+    bool? isDefault,
+    DateTime? createdAt,
+  }) => SavedCard(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    issuer: issuer ?? this.issuer,
+    cardType: cardType ?? this.cardType,
+    network: network ?? this.network,
+    cardNumber: cardNumber ?? this.cardNumber,
+    expiry: expiry ?? this.expiry,
+    holderName: holderName ?? this.holderName,
+    colorTone: colorTone ?? this.colorTone,
+    isDefault: isDefault ?? this.isDefault,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  SavedCard copyWithCompanion(SavedCardsCompanion data) {
+    return SavedCard(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      issuer: data.issuer.present ? data.issuer.value : this.issuer,
+      cardType: data.cardType.present ? data.cardType.value : this.cardType,
+      network: data.network.present ? data.network.value : this.network,
+      cardNumber: data.cardNumber.present
+          ? data.cardNumber.value
+          : this.cardNumber,
+      expiry: data.expiry.present ? data.expiry.value : this.expiry,
+      holderName: data.holderName.present
+          ? data.holderName.value
+          : this.holderName,
+      colorTone: data.colorTone.present ? data.colorTone.value : this.colorTone,
+      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavedCard(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('issuer: $issuer, ')
+          ..write('cardType: $cardType, ')
+          ..write('network: $network, ')
+          ..write('cardNumber: $cardNumber, ')
+          ..write('expiry: $expiry, ')
+          ..write('holderName: $holderName, ')
+          ..write('colorTone: $colorTone, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    issuer,
+    cardType,
+    network,
+    cardNumber,
+    expiry,
+    holderName,
+    colorTone,
+    isDefault,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SavedCard &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.issuer == this.issuer &&
+          other.cardType == this.cardType &&
+          other.network == this.network &&
+          other.cardNumber == this.cardNumber &&
+          other.expiry == this.expiry &&
+          other.holderName == this.holderName &&
+          other.colorTone == this.colorTone &&
+          other.isDefault == this.isDefault &&
+          other.createdAt == this.createdAt);
+}
+
+class SavedCardsCompanion extends UpdateCompanion<SavedCard> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> issuer;
+  final Value<String> cardType;
+  final Value<String> network;
+  final Value<String> cardNumber;
+  final Value<String> expiry;
+  final Value<String> holderName;
+  final Value<String> colorTone;
+  final Value<bool> isDefault;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const SavedCardsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.issuer = const Value.absent(),
+    this.cardType = const Value.absent(),
+    this.network = const Value.absent(),
+    this.cardNumber = const Value.absent(),
+    this.expiry = const Value.absent(),
+    this.holderName = const Value.absent(),
+    this.colorTone = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SavedCardsCompanion.insert({
+    required String id,
+    required String name,
+    required String issuer,
+    required String cardType,
+    required String network,
+    required String cardNumber,
+    required String expiry,
+    required String holderName,
+    this.colorTone = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       issuer = Value(issuer),
+       cardType = Value(cardType),
+       network = Value(network),
+       cardNumber = Value(cardNumber),
+       expiry = Value(expiry),
+       holderName = Value(holderName);
+  static Insertable<SavedCard> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? issuer,
+    Expression<String>? cardType,
+    Expression<String>? network,
+    Expression<String>? cardNumber,
+    Expression<String>? expiry,
+    Expression<String>? holderName,
+    Expression<String>? colorTone,
+    Expression<bool>? isDefault,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (issuer != null) 'issuer': issuer,
+      if (cardType != null) 'card_type': cardType,
+      if (network != null) 'network': network,
+      if (cardNumber != null) 'card_number': cardNumber,
+      if (expiry != null) 'expiry': expiry,
+      if (holderName != null) 'holder_name': holderName,
+      if (colorTone != null) 'color_tone': colorTone,
+      if (isDefault != null) 'is_default': isDefault,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SavedCardsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? issuer,
+    Value<String>? cardType,
+    Value<String>? network,
+    Value<String>? cardNumber,
+    Value<String>? expiry,
+    Value<String>? holderName,
+    Value<String>? colorTone,
+    Value<bool>? isDefault,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return SavedCardsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      issuer: issuer ?? this.issuer,
+      cardType: cardType ?? this.cardType,
+      network: network ?? this.network,
+      cardNumber: cardNumber ?? this.cardNumber,
+      expiry: expiry ?? this.expiry,
+      holderName: holderName ?? this.holderName,
+      colorTone: colorTone ?? this.colorTone,
+      isDefault: isDefault ?? this.isDefault,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (issuer.present) {
+      map['issuer'] = Variable<String>(issuer.value);
+    }
+    if (cardType.present) {
+      map['card_type'] = Variable<String>(cardType.value);
+    }
+    if (network.present) {
+      map['network'] = Variable<String>(network.value);
+    }
+    if (cardNumber.present) {
+      map['card_number'] = Variable<String>(cardNumber.value);
+    }
+    if (expiry.present) {
+      map['expiry'] = Variable<String>(expiry.value);
+    }
+    if (holderName.present) {
+      map['holder_name'] = Variable<String>(holderName.value);
+    }
+    if (colorTone.present) {
+      map['color_tone'] = Variable<String>(colorTone.value);
+    }
+    if (isDefault.present) {
+      map['is_default'] = Variable<bool>(isDefault.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SavedCardsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('issuer: $issuer, ')
+          ..write('cardType: $cardType, ')
+          ..write('network: $network, ')
+          ..write('cardNumber: $cardNumber, ')
+          ..write('expiry: $expiry, ')
+          ..write('holderName: $holderName, ')
+          ..write('colorTone: $colorTone, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1994,6 +2645,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TransactionsTable transactions = $TransactionsTable(this);
   late final $RecurringTransactionsTable recurringTransactions =
       $RecurringTransactionsTable(this);
+  late final $SavedCardsTable savedCards = $SavedCardsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2002,6 +2654,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     customers,
     transactions,
     recurringTransactions,
+    savedCards,
   ];
 }
 
@@ -3727,6 +4380,321 @@ typedef $$RecurringTransactionsTableProcessedTableManager =
       RecurringTransaction,
       PrefetchHooks Function({bool customerId, bool linkedTransactionId})
     >;
+typedef $$SavedCardsTableCreateCompanionBuilder =
+    SavedCardsCompanion Function({
+      required String id,
+      required String name,
+      required String issuer,
+      required String cardType,
+      required String network,
+      required String cardNumber,
+      required String expiry,
+      required String holderName,
+      Value<String> colorTone,
+      Value<bool> isDefault,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$SavedCardsTableUpdateCompanionBuilder =
+    SavedCardsCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> issuer,
+      Value<String> cardType,
+      Value<String> network,
+      Value<String> cardNumber,
+      Value<String> expiry,
+      Value<String> holderName,
+      Value<String> colorTone,
+      Value<bool> isDefault,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$SavedCardsTableFilterComposer
+    extends Composer<_$AppDatabase, $SavedCardsTable> {
+  $$SavedCardsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get issuer => $composableBuilder(
+    column: $table.issuer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cardType => $composableBuilder(
+    column: $table.cardType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get network => $composableBuilder(
+    column: $table.network,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cardNumber => $composableBuilder(
+    column: $table.cardNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get expiry => $composableBuilder(
+    column: $table.expiry,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get holderName => $composableBuilder(
+    column: $table.holderName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get colorTone => $composableBuilder(
+    column: $table.colorTone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SavedCardsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SavedCardsTable> {
+  $$SavedCardsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get issuer => $composableBuilder(
+    column: $table.issuer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cardType => $composableBuilder(
+    column: $table.cardType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get network => $composableBuilder(
+    column: $table.network,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cardNumber => $composableBuilder(
+    column: $table.cardNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get expiry => $composableBuilder(
+    column: $table.expiry,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get holderName => $composableBuilder(
+    column: $table.holderName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get colorTone => $composableBuilder(
+    column: $table.colorTone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SavedCardsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SavedCardsTable> {
+  $$SavedCardsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get issuer =>
+      $composableBuilder(column: $table.issuer, builder: (column) => column);
+
+  GeneratedColumn<String> get cardType =>
+      $composableBuilder(column: $table.cardType, builder: (column) => column);
+
+  GeneratedColumn<String> get network =>
+      $composableBuilder(column: $table.network, builder: (column) => column);
+
+  GeneratedColumn<String> get cardNumber => $composableBuilder(
+    column: $table.cardNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get expiry =>
+      $composableBuilder(column: $table.expiry, builder: (column) => column);
+
+  GeneratedColumn<String> get holderName => $composableBuilder(
+    column: $table.holderName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get colorTone =>
+      $composableBuilder(column: $table.colorTone, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDefault =>
+      $composableBuilder(column: $table.isDefault, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$SavedCardsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SavedCardsTable,
+          SavedCard,
+          $$SavedCardsTableFilterComposer,
+          $$SavedCardsTableOrderingComposer,
+          $$SavedCardsTableAnnotationComposer,
+          $$SavedCardsTableCreateCompanionBuilder,
+          $$SavedCardsTableUpdateCompanionBuilder,
+          (
+            SavedCard,
+            BaseReferences<_$AppDatabase, $SavedCardsTable, SavedCard>,
+          ),
+          SavedCard,
+          PrefetchHooks Function()
+        > {
+  $$SavedCardsTableTableManager(_$AppDatabase db, $SavedCardsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SavedCardsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SavedCardsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SavedCardsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> issuer = const Value.absent(),
+                Value<String> cardType = const Value.absent(),
+                Value<String> network = const Value.absent(),
+                Value<String> cardNumber = const Value.absent(),
+                Value<String> expiry = const Value.absent(),
+                Value<String> holderName = const Value.absent(),
+                Value<String> colorTone = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavedCardsCompanion(
+                id: id,
+                name: name,
+                issuer: issuer,
+                cardType: cardType,
+                network: network,
+                cardNumber: cardNumber,
+                expiry: expiry,
+                holderName: holderName,
+                colorTone: colorTone,
+                isDefault: isDefault,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String issuer,
+                required String cardType,
+                required String network,
+                required String cardNumber,
+                required String expiry,
+                required String holderName,
+                Value<String> colorTone = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SavedCardsCompanion.insert(
+                id: id,
+                name: name,
+                issuer: issuer,
+                cardType: cardType,
+                network: network,
+                cardNumber: cardNumber,
+                expiry: expiry,
+                holderName: holderName,
+                colorTone: colorTone,
+                isDefault: isDefault,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SavedCardsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SavedCardsTable,
+      SavedCard,
+      $$SavedCardsTableFilterComposer,
+      $$SavedCardsTableOrderingComposer,
+      $$SavedCardsTableAnnotationComposer,
+      $$SavedCardsTableCreateCompanionBuilder,
+      $$SavedCardsTableUpdateCompanionBuilder,
+      (SavedCard, BaseReferences<_$AppDatabase, $SavedCardsTable, SavedCard>),
+      SavedCard,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3737,4 +4705,6 @@ class $AppDatabaseManager {
       $$TransactionsTableTableManager(_db, _db.transactions);
   $$RecurringTransactionsTableTableManager get recurringTransactions =>
       $$RecurringTransactionsTableTableManager(_db, _db.recurringTransactions);
+  $$SavedCardsTableTableManager get savedCards =>
+      $$SavedCardsTableTableManager(_db, _db.savedCards);
 }

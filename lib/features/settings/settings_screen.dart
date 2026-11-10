@@ -11,6 +11,7 @@ import 'components/reminder_template_dialog.dart';
 import '../../core/localization/translations.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/database/database.dart';
+import '../cards/card_management_screen.dart';
 import '../reports/reports_screen.dart';
 import 'backup_settings_screen.dart';
 
@@ -125,6 +126,36 @@ class SettingsScreen extends StatelessWidget {
                   _buildSection(
                     title: AppTranslations.get(
                       languageProvider.locale.languageCode,
+                      'section_payments',
+                    ),
+                    isDark: isDark,
+                    children: [
+                      _buildSettingItem(
+                        icon: Icons.credit_card_outlined,
+                        label: AppTranslations.get(
+                          languageProvider.locale.languageCode,
+                          'card_management_label',
+                        ),
+                        description: AppTranslations.get(
+                          languageProvider.locale.languageCode,
+                          'card_management_desc',
+                        ),
+                        isDark: isDark,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const CardManagementScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  _buildSection(
+                    title: AppTranslations.get(
+                      languageProvider.locale.languageCode,
                       'section_data',
                     ),
                     isDark: isDark,
@@ -199,7 +230,8 @@ class SettingsScreen extends StatelessWidget {
                                 builder: (context) => AlertDialog(
                                   title: const Text('Import Successful'),
                                   content: Text(
-                                    'Added ${result['customers']} customers and ${result['transactions']} transactions.',
+                                    'Added ${result['customers']} customers and ${result['transactions']} transactions'
+                                    '${(result['savedCards'] ?? 0) > 0 ? ' and ${result['savedCards']} cards' : ''}.',
                                   ),
                                   actions: [
                                     TextButton(
